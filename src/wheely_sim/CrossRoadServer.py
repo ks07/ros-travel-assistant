@@ -5,7 +5,7 @@ roslib.load_manifest('wheely_sim')
 import rospy
 import actionlib
 
-from wheely_sim.msg import CrossRoadAction
+from wheely_sim.msg import CrossRoadAction, CrossRoadResult
 
 class CrossRoadServer:
     def __init__(self):
@@ -14,7 +14,9 @@ class CrossRoadServer:
 
     def execute(self,goal):
         # TODO: This should do the action
-        self.server.set_succeeded()
+        res = CrossRoadResult()
+        res.did_we_make_it = 197
+        self.server.set_succeeded(result = res)
 
 if __name__ == '__main__':
     rospy.init_node('cross_road_server')

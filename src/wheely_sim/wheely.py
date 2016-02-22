@@ -1,8 +1,13 @@
 #!/usr/bin/env python
 
+import roslib
+roslib.load_manifest('wheely_sim')
 import rospy
 import smach
 import smach_ros
+import actionlib
+
+from wheely_sim.msg import CrossRoadAction, CrossRoadGoal
 
 class Waiting(smach.State):
     def __init__(self):
@@ -25,6 +30,18 @@ class Crossing(smach.State):
 
     def execute(self, userdata):
         rospy.loginfo('Executing state CROSSING')
+        
+        # Try to interface with actionlib manually
+        client = actionlib.SimpleActionClient('cross_road', CrossRoadAction)
+        client.wait_for_server()
+
+        goal = CrossRoadGoal()
+        # Fill in the goal here ???
+        client.send_goal(goal)
+        client.wait_for_result(rospy.Duration.from_sec(5.0))
+        res = client.get_result()
+        rospy.loginfo(res)
+
         return 'succeeded'
 
 def main():
@@ -44,6 +61,7 @@ def main():
 
     # Execute smach plan!
     outcome = sm.execute()
+    rospy.spin()
 
 if __name__ == '__main__':
     main()
