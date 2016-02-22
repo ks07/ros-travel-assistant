@@ -1,0 +1,8 @@
+# Define the goal
+uint32 crossing_id # Specify the crossing to use
+---
+# Define the result
+uint32 did_we_make_it # This should probably be a bool, or nothing
+---
+# Define a feedback message
+float32 percent_complete
