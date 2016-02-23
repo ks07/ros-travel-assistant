@@ -38,7 +38,7 @@ class Crossing(smach.State):
         goal = CrossRoadGoal()
         # Fill in the goal here ???
         client.send_goal(goal)
-        client.wait_for_result(rospy.Duration.from_sec(5.0))
+        client.wait_for_result(rospy.Duration.from_sec(90.0))
         res = client.get_result()
         rospy.loginfo(res)
 

@@ -25,6 +25,7 @@ class CrossRoadServer:
             self.pub.publish(self.cmd_vel_fwd)
             rate.sleep()
         self.pub.publish(Twist()) # brake
+        rospy.loginfo('Braking.')
         res = CrossRoadResult()
         res.did_we_make_it = 197
         self.server.set_succeeded(result = res)
