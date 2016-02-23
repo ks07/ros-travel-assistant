@@ -18,6 +18,7 @@ find_package(catkin REQUIRED
   genmsg
   actionlib_msgs
   actionlib
+  geometry_msgs
 )
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -76,6 +77,7 @@ generate_messages(
   DEPENDENCIES
   std_msgs
   actionlib_msgs
+  geometry_msgs
 )
 
 ################################################
