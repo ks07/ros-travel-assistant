@@ -36,7 +36,7 @@ class Crossing(smach.State):
         client.wait_for_server()
 
         goal = CrossRoadGoal()
-        # Fill in the goal here ???
+        goal.crossing_id = False
         client.send_goal(goal)
         client.wait_for_result(rospy.Duration.from_sec(90.0))
         res = client.get_result()

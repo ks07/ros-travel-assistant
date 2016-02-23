@@ -16,10 +16,16 @@ class CrossRoadServer:
         self.cmd_vel_fwd = Twist()
         self.cmd_vel_fwd.linear.x = 1.0
 
+        self.location = False
+
         self.server.start()
 
     def execute(self,goal):
-        # TODO: This should do the action
+        if goal.crossing_id == self.location:
+            res = CrossRoadResult()
+            res.did_we_make_it = True
+            self.server.set_succeeded(result = res)
+            return
         rate = rospy.Rate(5.0) # 5 hz
         for i in range(100): # 20 secs
             self.pub.publish(self.cmd_vel_fwd)
