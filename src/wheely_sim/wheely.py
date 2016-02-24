@@ -1,17 +1,21 @@
 #!/usr/bin/env python
 
+import random
+
 import roslib
 roslib.load_manifest('wheely_sim')
 import rospy
 import smach
 import smach_ros
 import actionlib
+import std_msgs.msg
 
 from wheely_sim.msg import CrossRoadAction, CrossRoadGoal
 
 class Waiting(smach.State):
+    """ The state where wheely is idle on the pavement. """
     def __init__(self):
-        smach.State.__init__(self, outcomes=['wait','cross'])
+        smach.State.__init__(self, outcomes=['wait','signalwait'])
         # Any state init here
         self.counter = 0
 
@@ -22,9 +26,37 @@ class Waiting(smach.State):
             self.counter += 1
             return 'wait'
         else:
+            self.counter = 0
+            return 'signalwait'
+
+class SignalWaiting(smach.State):
+    """ The state where wheely is waiting for the lights on the crossing to turn green. """
+    def __init__(self):
+        smach.State.__init__(self, outcomes=['signalwait','timeout','cross'])
+        self.ready = False
+
+    def execute(self, userdata):
+        rospy.sleep(0.2)
+        rospy.Subscriber('crossing_signals', std_msgs.msg.Int8, callback_smach, self)
+        rospy.sleep(0.1)
+        if self.ready:
+            self.ready = False
             return 'cross'
-    
+        else:
+            return 'signalwait'
+
+    def sub_callback(self, data):
+        if data.data == 99:
+            self.ready = True
+        else:
+            self.ready = False
+
+def callback_smach(data,state):
+    rospy.loginfo('Received: ' + str(data) + ' for ' + str(state))
+    state.sub_callback(data)
+
 class Crossing(smach.State):
+    """ The state where wheely is moving across the road. """
     def __init__(self):
         smach.State.__init__(self, outcomes=['succeeded'])
 
@@ -36,7 +68,8 @@ class Crossing(smach.State):
         client.wait_for_server()
 
         goal = CrossRoadGoal()
-        goal.crossing_id = False
+        goal.crossing_id = random.randrange(2)
+        rospy.loginfo('Asking base to drive to ' + str(goal.crossing_id))
         client.send_goal(goal)
         client.wait_for_result(rospy.Duration.from_sec(90.0))
         res = client.get_result()
@@ -55,9 +88,13 @@ def main():
         # Add states to the container
         smach.StateMachine.add('WAITING', Waiting(),
                                transitions={'wait':'WAITING',
-                                            'cross':'CROSSING'})
+                                            'signalwait':'SIGNALWAITING'})
+        smach.StateMachine.add('SIGNALWAITING', SignalWaiting(),
+                               transitions={'signalwait':'SIGNALWAITING',
+                                            'cross':'CROSSING',
+                                            'timeout':'WAITING'})
         smach.StateMachine.add('CROSSING', Crossing(),
-                               transitions={'succeeded':'succeeded'})
+                               transitions={'succeeded':'WAITING'})
 
     # Execute smach plan!
     outcome = sm.execute()

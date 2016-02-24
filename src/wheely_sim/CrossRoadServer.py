@@ -16,6 +16,9 @@ class CrossRoadServer:
         self.cmd_vel_fwd = Twist()
         self.cmd_vel_fwd.linear.x = 1.0
 
+        self.cmd_vel_rev = Twist()
+        self.cmd_vel_rev.linear.x = -1.0
+
         self.location = False
 
         self.server.start()
@@ -26,12 +29,17 @@ class CrossRoadServer:
             res.did_we_make_it = True
             self.server.set_succeeded(result = res)
             return
+        if goal.crossing_id:
+            drive_cmd = self.cmd_vel_fwd
+        else:
+            drive_cmd = self.cmd_vel_rev
         rate = rospy.Rate(5.0) # 5 hz
         for i in range(100): # 20 secs
-            self.pub.publish(self.cmd_vel_fwd)
+            self.pub.publish(drive_cmd)
             rate.sleep()
         self.pub.publish(Twist()) # brake
         rospy.loginfo('Braking.')
+        self.location = not self.location
         res = CrossRoadResult()
         res.did_we_make_it = 197
         self.server.set_succeeded(result = res)
