@@ -12,22 +12,31 @@ import std_msgs.msg
 
 from wheely_sim.msg import CrossRoadAction, CrossRoadGoal
 
+def callback_smach(data,state):
+    rospy.loginfo('Received: ' + str(data) + ' for ' + type(state).__name__)
+    state.sub_callback(data)
+
 class Waiting(smach.State):
     """ The state where wheely is idle on the pavement. """
     def __init__(self):
         smach.State.__init__(self, outcomes=['wait','signalwait'])
         # Any state init here
-        self.counter = 0
+        self.command = -1
 
     def execute(self, userdata):
         # State execution here
         rospy.loginfo('Executing state WAITING')
-        if self.counter < 3:
-            self.counter += 1
-            return 'wait'
-        else:
-            self.counter = 0
+        rospy.sleep(0.2)
+        rospy.Subscriber('user_commands', std_msgs.msg.Int8, callback_smach, self)
+        rospy.sleep(0.1)
+        if self.command > 0:
+            self.command = -1
             return 'signalwait'
+        else:
+            return 'wait'
+
+    def sub_callback(self, data):
+        self.command = data
 
 class SignalWaiting(smach.State):
     """ The state where wheely is waiting for the lights on the crossing to turn green. """
@@ -36,6 +45,7 @@ class SignalWaiting(smach.State):
         self.ready = False
 
     def execute(self, userdata):
+        rospy.loginfo('Executing state SIGNALWAITING')
         rospy.sleep(0.2)
         rospy.Subscriber('crossing_signals', std_msgs.msg.Int8, callback_smach, self)
         rospy.sleep(0.1)
@@ -51,9 +61,6 @@ class SignalWaiting(smach.State):
         else:
             self.ready = False
 
-def callback_smach(data,state):
-    rospy.loginfo('Received: ' + str(data) + ' for ' + str(state))
-    state.sub_callback(data)
 
 class Crossing(smach.State):
     """ The state where wheely is moving across the road. """
