@@ -19,7 +19,9 @@ def callback_smach(data,state):
 class Waiting(smach.State):
     """ The state where wheely is idle on the pavement. """
     def __init__(self):
-        smach.State.__init__(self, outcomes=['wait','signalwait'])
+        smach.State.__init__(self,
+                             outcomes=['wait','signalwait'],
+                             output_keys=['wait_dest_out'])
         # Any state init here
         self.command = -1
 
@@ -30,6 +32,7 @@ class Waiting(smach.State):
         rospy.Subscriber('user_commands', std_msgs.msg.Int8, callback_smach, self)
         rospy.sleep(0.1)
         if self.command > 0:
+            userdata.wait_dest_out = self.command
             self.command = -1
             return 'signalwait'
         else:
@@ -41,7 +44,10 @@ class Waiting(smach.State):
 class SignalWaiting(smach.State):
     """ The state where wheely is waiting for the lights on the crossing to turn green. """
     def __init__(self):
-        smach.State.__init__(self, outcomes=['signalwait','timeout','cross'])
+        smach.State.__init__(self,
+                             outcomes=['signalwait','timeout','cross'],
+                             input_keys=['sigwait_dest_in'],
+                             output_keys=['sigwait_dest_out'])
         self.ready = False
 
     def execute(self, userdata):
@@ -65,17 +71,19 @@ class SignalWaiting(smach.State):
 class Crossing(smach.State):
     """ The state where wheely is moving across the road. """
     def __init__(self):
-        smach.State.__init__(self, outcomes=['succeeded'])
+        smach.State.__init__(self,
+                             outcomes=['succeeded'],
+                             input_keys=['cross_dest_in'])
 
     def execute(self, userdata):
-        rospy.loginfo('Executing state CROSSING')
+        rospy.loginfo('Executing state CROSSING dest: ' + str(userdata.cross_dest_in))
         
         # Try to interface with actionlib manually
         client = actionlib.SimpleActionClient('cross_road', CrossRoadAction)
         client.wait_for_server()
 
         goal = CrossRoadGoal()
-        goal.crossing_id = random.randrange(2)
+        goal.crossing_id = bool(userdata.cross_dest_in)
         rospy.loginfo('Asking base to drive to ' + str(goal.crossing_id))
         client.send_goal(goal)
         client.wait_for_result(rospy.Duration.from_sec(90.0))
@@ -95,13 +103,17 @@ def main():
         # Add states to the container
         smach.StateMachine.add('WAITING', Waiting(),
                                transitions={'wait':'WAITING',
-                                            'signalwait':'SIGNALWAITING'})
+                                            'signalwait':'SIGNALWAITING'},
+                               remapping={'wait_dest_out':'user_dest'})
         smach.StateMachine.add('SIGNALWAITING', SignalWaiting(),
                                transitions={'signalwait':'SIGNALWAITING',
                                             'cross':'CROSSING',
-                                            'timeout':'WAITING'})
+                                            'timeout':'WAITING'},
+                               remapping={'sigwait_dest_in':'user_dest',
+                                          'sigwait_dest_out':'user_dest'})
         smach.StateMachine.add('CROSSING', Crossing(),
-                               transitions={'succeeded':'WAITING'})
+                               transitions={'succeeded':'WAITING'},
+                               remapping={'cross_dest_in':'user_dest'})
 
     # Execute smach plan!
     outcome = sm.execute()
