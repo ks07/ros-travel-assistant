@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/local/bin/coverage run
 
 import rospy
 import smach
@@ -18,7 +18,7 @@ class Waiting(smach.State):
     """ The state where wheely is idle on the pavement. """
     def __init__(self):
         smach.State.__init__(self,
-                             outcomes=['wait','signalwait'],
+                             outcomes=['wait','signalwait','shutdown'],
                              output_keys=['wait_dest_out'])
         # Any state init here
         self.command = -1
@@ -29,7 +29,10 @@ class Waiting(smach.State):
         rospy.sleep(0.2)
         rospy.Subscriber('user_commands', std_msgs.msg.Int8, callback_smach, self)
         rospy.sleep(0.1)
-        if self.command > 0:
+        if self.command == 127:
+            # Quit command, to end a test gracefully.
+            return 'shutdown'
+        elif self.command > 0:
             userdata.wait_dest_out = self.command
             self.command = -1
             return 'signalwait'
@@ -37,7 +40,7 @@ class Waiting(smach.State):
             return 'wait'
 
     def sub_callback(self, data):
-        self.command = data
+        self.command = data.data
 
 class SignalWaiting(smach.State):
     """ The state where wheely is waiting for the lights on the crossing to turn green. """
@@ -81,7 +84,7 @@ class Crossing(smach.State):
         client.wait_for_server()
 
         goal = CrossRoadGoal()
-        goal.crossing_id = bool(userdata.cross_dest_in)
+        goal.crossing_id = userdata.cross_dest_in
         rospy.loginfo('Asking base to drive to ' + str(goal.crossing_id))
         client.send_goal(goal)
         client.wait_for_result(rospy.Duration.from_sec(90.0))
@@ -101,7 +104,8 @@ def main():
         # Add states to the container
         smach.StateMachine.add('WAITING', Waiting(),
                                transitions={'wait':'WAITING',
-                                            'signalwait':'SIGNALWAITING'},
+                                            'signalwait':'SIGNALWAITING',
+                                            'shutdown':'succeeded'},
                                remapping={'wait_dest_out':'user_dest'})
         smach.StateMachine.add('SIGNALWAITING', SignalWaiting(),
                                transitions={'signalwait':'SIGNALWAITING',
@@ -117,9 +121,6 @@ def main():
     outcome = sm.execute()
 
 if __name__ == '__main__':
-#    cov = Coverage()
-#    cov.start()
-
     try:
         main()
     except smach.exceptions.InvalidUserCodeError as ex:
@@ -127,6 +128,3 @@ if __name__ == '__main__':
             print 'Shutting down'
         else: # pragma: no cover
             raise
-
-#    cov.stop()
-#    cov.html_report(directory='covhtml')
