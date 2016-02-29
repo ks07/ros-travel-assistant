@@ -1,9 +1,5 @@
 #!/usr/bin/env python
 
-import random
-
-import roslib
-roslib.load_manifest('wheely_sim')
 import rospy
 import smach
 import smach_ros
@@ -11,6 +7,8 @@ import actionlib
 import std_msgs.msg
 
 from wheely_sim.msg import CrossRoadAction, CrossRoadGoal
+
+from coverage import Coverage
 
 def callback_smach(data,state):
     rospy.loginfo('Received: ' + str(data) + ' for ' + type(state).__name__)
@@ -117,7 +115,18 @@ def main():
 
     # Execute smach plan!
     outcome = sm.execute()
-    rospy.spin()
 
 if __name__ == '__main__':
-    main()
+#    cov = Coverage()
+#    cov.start()
+
+    try:
+        main()
+    except smach.exceptions.InvalidUserCodeError as ex:
+        if rospy.is_shutdown():
+            print 'Shutting down'
+        else: # pragma: no cover
+            raise
+
+#    cov.stop()
+#    cov.html_report(directory='covhtml')
