@@ -1,0 +1,11 @@
+/* Jason Project */
+
+MAS wheely {
+
+    infrastructure: Centralised
+
+    agents:
+        wheely;
+
+}
+
