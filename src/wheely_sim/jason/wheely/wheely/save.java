@@ -12,7 +12,10 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.logging.Logger;
+import java.util.Map;
 
 /**
   <p>Internal action: <b><code>wheely.save</code></b>.
@@ -22,8 +25,8 @@ import java.util.logging.Logger;
 */
 public class save extends DefaultInternalAction {
 	
-	private final ArrayList<String> toSave = new ArrayList<>();
-	private final Path outPath;
+	private final HashMap<String, List<String>> toSave = new HashMap<>();
+	private static final String outDir = "bdi_tests";
 
     private static InternalAction singleton = null;
     public static InternalAction create() {
@@ -32,31 +35,26 @@ public class save extends DefaultInternalAction {
         return singleton;
     }
 	private save() {
-		outPath = Paths.get("bdi_test.txt");
 	}
     
     @Override
     public Object execute(TransitionSystem ts, Unifier un, Term[] args) throws Exception {
         String sout = argsToString(args);
-		// Agent ag = ts.getAg();
+		String key = "anon"; 
         
-//        if (ts != null) {
-//            saveLine(sout.toString());
-//        } else {
-//            saveLine(sout.toString());
-//        }
-		toSave.add(sout.toString());
+        if (ts != null) {
+			Agent ag = ts.getAg();
+			key = ts.getUserAgArch().getAgName();
+		}
+
+		if (!toSave.containsKey(key)) {
+			toSave.put(key, new ArrayList<String>());
+		}
+		toSave.get(key).add(sout);
+		ts.getLogger().info("Saving: " + key + " : " + sout);
         
         return true;
     }
-	
-	private void saveLine(String line) {
-		try {
-			Files.write(outPath, Arrays.asList(line), Charset.forName("UTF-8"));
-		} catch (IOException ioe) {
-			System.out.println("fail");	
-		}
-	}
 
     protected String argsToString(Term[] args) {
         StringBuilder sout = new StringBuilder();
@@ -79,10 +77,14 @@ public class save extends DefaultInternalAction {
 	
 	@Override
 	public void destroy() throws Exception {
-		try {
-			Files.write(outPath, toSave, Charset.forName("UTF-8"));
-		} catch (IOException ioe) {
-			System.out.println("Test saving failed: " + ioe.getMessage());
+		for (Map.Entry<String,List<String>> entry : toSave.entrySet()) {
+			try {
+				Path outPath = Paths.get(outDir, entry.getKey().replaceAll("[^-_.A-Za-z0-9]","_").concat(".txt"));
+				Files.createDirectories(outPath.getParent());
+				Files.write(outPath, entry.getValue(), Charset.forName("UTF-8"));
+			} catch (IOException ioe) {
+				System.out.println("Test saving failed (" + entry.getKey() + "): " + ioe.toString());
+			}
 		}
 	}
 }
