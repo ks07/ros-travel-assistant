@@ -4,3 +4,4 @@ devel/
 .coverage
 covhtml/
 bin/
+bdi_tests/
