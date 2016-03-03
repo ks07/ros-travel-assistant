@@ -50,11 +50,13 @@ class SignalWaiting(smach.State):
                              input_keys=['sigwait_dest_in'],
                              output_keys=['sigwait_dest_out'])
         self.ready = False
+        self.pub = rospy.Publisher('light_commands', std_msgs.msg.Int8, queue_size=10)
+        self.sub = rospy.Subscriber('crossing_signals', std_msgs.msg.Int8, callback_smach, self)
 
     def execute(self, userdata):
         rospy.loginfo('Executing state SIGNALWAITING')
+        self.pub.publish(data = 1)
         rospy.sleep(0.2)
-        rospy.Subscriber('crossing_signals', std_msgs.msg.Int8, callback_smach, self)
         rospy.sleep(0.1)
         if self.ready:
             self.ready = False

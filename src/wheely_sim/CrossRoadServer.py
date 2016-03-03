@@ -34,7 +34,7 @@ class CrossRoadServer:
         else:
             drive_cmd = self.cmd_vel_rev
         rate = rospy.Rate(5.0) # 5 hz
-        for i in range(100): # 20 secs
+        for i in range(30): # 6 seconds * 1m/s = 6m
             self.pub.publish(drive_cmd)
             rate.sleep()
         self.pub.publish(Twist()) # brake
