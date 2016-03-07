@@ -18,21 +18,29 @@ class Waiting(smach.State):
     """ The state where wheely is idle on the pavement. """
     def __init__(self):
         smach.State.__init__(self,
-                             outcomes=['wait','signalwait','shutdown'],
+                             outcomes=['wait','signalwait','shutdown','preempted'],
                              output_keys=['wait_dest_out'])
         # Any state init here
         self.command = -1
 
     def execute(self, userdata):
+        if rospy.is_shutdown():
+            return 'preempted'
         # State execution here
         rospy.loginfo('Executing state WAITING')
         rospy.sleep(0.2)
+
         rospy.Subscriber('user_commands', std_msgs.msg.Int8, callback_smach, self)
         rospy.sleep(0.1)
+
+        if self.preempt_requested():
+            self.service_preempt()
+            return 'preempted'
+
         if self.command == 127:
             # Quit command, to end a test gracefully.
-            return 'shutdown'
-        elif self.command > 0:
+            return 'wait'
+        elif self.command >= 0:
             userdata.wait_dest_out = self.command
             self.command = -1
             return 'signalwait'
@@ -46,7 +54,7 @@ class SignalWaiting(smach.State):
     """ The state where wheely is waiting for the lights on the crossing to turn green. """
     def __init__(self):
         smach.State.__init__(self,
-                             outcomes=['signalwait','timeout','cross'],
+                             outcomes=['signalwait','timeout','cross','preempted'],
                              input_keys=['sigwait_dest_in'],
                              output_keys=['sigwait_dest_out'])
         self.ready = False
@@ -54,10 +62,18 @@ class SignalWaiting(smach.State):
         self.sub = rospy.Subscriber('crossing_signals', std_msgs.msg.Int8, callback_smach, self)
 
     def execute(self, userdata):
+        if rospy.is_shutdown():
+            return 'preempted'
         rospy.loginfo('Executing state SIGNALWAITING')
+
         self.pub.publish(data = 1)
         rospy.sleep(0.2)
         rospy.sleep(0.1)
+
+        if self.preempt_requested():
+            self.service_preempt()
+            return 'preempted'
+
         if self.ready:
             self.ready = False
             return 'cross'
@@ -71,56 +87,116 @@ class SignalWaiting(smach.State):
             self.ready = False
 
 
-class Crossing(smach.State):
-    """ The state where wheely is moving across the road. """
+class BeginCrossing(smach.State):
+    """ The state where we tell the base to start the move op. """
     def __init__(self):
         smach.State.__init__(self,
-                             outcomes=['succeeded'],
-                             input_keys=['cross_dest_in'])
+                             outcomes=['succeeded','preempted'],
+                             input_keys=['begincross_dest_in'],
+                             output_keys=['begincross_actcli_out'])
 
     def execute(self, userdata):
-        rospy.loginfo('Executing state CROSSING dest: ' + str(userdata.cross_dest_in))
+        if rospy.is_shutdown():
+            return 'preempted'
+        rospy.loginfo('Executing state BEGINCROSSING dest: ' + str(userdata.begincross_dest_in))
+
+        if self.preempt_requested():
+            self.service_preempt()
+            return 'preempted'
         
         # Try to interface with actionlib manually
         client = actionlib.SimpleActionClient('cross_road', CrossRoadAction)
         client.wait_for_server()
 
         goal = CrossRoadGoal()
-        goal.crossing_id = userdata.cross_dest_in
+        goal.crossing_id = userdata.begincross_dest_in
         rospy.loginfo('Asking base to drive to ' + str(goal.crossing_id))
         client.send_goal(goal)
-        client.wait_for_result(rospy.Duration.from_sec(90.0))
+        userdata.begincross_actcli_out = client
+
+        return 'succeeded'
+
+class Crossing(smach.State):
+    """ The state where wheel is moving across the road. """
+    def __init__(self):
+        smach.State.__init__(self,
+                             outcomes=['succeeded','preempted','replanned'],
+                             input_keys=['cross_actcli_in'],
+                             output_keys=['cross_dest_out','cross_actcli_in']) # Need to mark as output so that the object is mutable
+
+    def execute(self, userdata):
+        if rospy.is_shutdown():
+            return 'preempted'
+        rospy.loginfo('Executing state CROSSING')
+
+        client = userdata.cross_actcli_in
+        client.wait_for_result(rospy.Duration.from_sec(45.0))
         res = client.get_result()
         rospy.loginfo(res)
 
         return 'succeeded'
 
+def monitor_commands_cb(ud,msg):
+    # ud is a smach.user_data.Remapper instance
+    # msg is the message struct
+    print ud,msg
+    return msg.data != 127
+
+def concurrence_cb(states):
+    # Return True to preempt all other states, False to wait, or a list of labels to preempt
+    #rospy.signal_shutdown('Monitor shutdown')
+    return True
+
 def main():
     rospy.init_node('wheely_node')
 
-    # Create the state machine
-    sm = smach.StateMachine(outcomes=['succeeded','failed'])
+    sm_con = smach.Concurrence(outcomes=['continue','done'],
+                               default_outcome='continue',
+                               child_termination_cb=concurrence_cb,
+                               outcome_map={'done':{'MONITOR_COMMANDS':'invalid'}})
 
-    # Open the container
-    with sm:
-        # Add states to the container
-        smach.StateMachine.add('WAITING', Waiting(),
-                               transitions={'wait':'WAITING',
-                                            'signalwait':'SIGNALWAITING',
-                                            'shutdown':'succeeded'},
-                               remapping={'wait_dest_out':'user_dest'})
-        smach.StateMachine.add('SIGNALWAITING', SignalWaiting(),
-                               transitions={'signalwait':'SIGNALWAITING',
-                                            'cross':'CROSSING',
-                                            'timeout':'WAITING'},
-                               remapping={'sigwait_dest_in':'user_dest',
-                                          'sigwait_dest_out':'user_dest'})
-        smach.StateMachine.add('CROSSING', Crossing(),
-                               transitions={'succeeded':'WAITING'},
-                               remapping={'cross_dest_in':'user_dest'})
+    with sm_con:
+        # Create a monitor state that will run concurrently
+        smach.Concurrence.add('MONITOR_COMMANDS',
+                              smach_ros.MonitorState('/user_commands',
+                                                     std_msgs.msg.Int8,
+                                                     monitor_commands_cb))
+
+        # Create the main state machine
+        sm = smach.StateMachine(outcomes=['succeeded','failed'])
+
+        # Open the container
+        with sm:
+            # Add states to the container
+            smach.StateMachine.add('WAITING', Waiting(),
+                                   transitions={'wait':'WAITING',
+                                                'signalwait':'SIGNALWAITING',
+                                                'shutdown':'succeeded',
+                                                'preempted':'succeeded'},
+                                   remapping={'wait_dest_out':'user_dest'})
+            smach.StateMachine.add('SIGNALWAITING', SignalWaiting(),
+                                   transitions={'signalwait':'SIGNALWAITING',
+                                                'cross':'BEGINCROSSING',
+                                                'timeout':'WAITING',
+                                                'preempted':'WAITING'},
+                                   remapping={'sigwait_dest_in':'user_dest',
+                                              'sigwait_dest_out':'user_dest'})
+            smach.StateMachine.add('BEGINCROSSING', BeginCrossing(),
+                                   transitions={'succeeded':'CROSSING',
+                                                'preempted':'WAITING'},
+                                   remapping={'begincross_dest_in':'user_dest',
+                                              'begincross_actcli_out':'actcli'})
+            smach.StateMachine.add('CROSSING', Crossing(),
+                                   transitions={'succeeded':'WAITING',
+                                                'preempted':'WAITING',
+                                                'replanned':'SIGNALWAITING'},
+                                   remapping={'cross_actcli_in':'actcli'})
+                                                
+
+        smach.Concurrence.add('MAIN', sm)
 
     # Execute smach plan!
-    outcome = sm.execute()
+    outcome = sm_con.execute()
 
 if __name__ == '__main__':
     try:
