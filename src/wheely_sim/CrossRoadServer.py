@@ -19,29 +19,48 @@ class CrossRoadServer:
         self.cmd_vel_rev = Twist()
         self.cmd_vel_rev.linear.x = -1.0
 
-        self.location = False
+        self.SLEEP_RATE = 5.0 # Hz
+        self.MOVE_STEPS = 30 # 6 seconds * 1m/s = 6m
+        self.location = 0
 
         self.server.start()
 
+    def goalid_to_location(self,id):
+        if id:
+            return self.MOVE_STEPS - 1
+        else:
+            return 0
+
     def execute(self,goal):
-        if goal.crossing_id == self.location:
+        gloc = self.goalid_to_location(goal.crossing_id)
+        if gloc == self.location:
+            rospy.loginfo('Cross road not necessary.')
             res = CrossRoadResult()
             res.did_we_make_it = True
             self.server.set_succeeded(result = res)
             return
-        if goal.crossing_id:
+        step_dist = gloc - self.location
+        if step_dist > 0:
             drive_cmd = self.cmd_vel_fwd
         else:
             drive_cmd = self.cmd_vel_rev
-        rate = rospy.Rate(5.0) # 5 hz
-        for i in range(30): # 6 seconds * 1m/s = 6m
+        rate = rospy.Rate(self.SLEEP_RATE)
+        for i in range(abs(step_dist)):
+            if self.server.is_preempt_requested():
+                # Cancel movement, brake. Warning: this is vulnerable to drift!
+                rospy.loginfo('Cross road cancelled.')
+                self.pub.publish(Twist())
+                res = CrossRoadResult()
+                res.did_we_make_it = 0
+                self.server.set_preempted(result = res)
+                return
             self.pub.publish(drive_cmd)
+            self.location = self.location + cmp(step_dist,0) # Use cmp to get sign
             rate.sleep()
         self.pub.publish(Twist()) # brake
         rospy.loginfo('Braking.')
-        self.location = not self.location
         res = CrossRoadResult()
-        res.did_we_make_it = 197
+        res.did_we_make_it = 1
         self.server.set_succeeded(result = res)
 
 if __name__ == '__main__':
