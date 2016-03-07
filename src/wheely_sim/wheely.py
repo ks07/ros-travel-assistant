@@ -84,7 +84,7 @@ class SignalWaiting(smach.State):
                 return 'signalwait'
 
     def sub_callback(self, data):
-        if data.data == 99:
+        if data.data == 1:
             self.ready = True
         else:
             self.ready = False

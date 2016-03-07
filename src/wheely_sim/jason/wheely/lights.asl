@@ -40,6 +40,6 @@ traffic(green).
 	if (C == green) {
 		wheely.save("pub,crossing_signals,",0);
 	} else {
-		wheely.save("pub,crossing_signals,",99);
+		wheely.save("pub,crossing_signals,",1);
 	}.
 
