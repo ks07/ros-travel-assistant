@@ -19,7 +19,7 @@ class Waiting(smach.State):
     def __init__(self):
         smach.State.__init__(self,
                              outcomes=['wait','signalwait','shutdown','preempted'],
-                             output_keys=['wait_dest_out'])
+                             output_keys=['wait_dest_out','wait_midcross_out'])
         # Any state init here
         self.command = -1
         self.sub = rospy.Subscriber('user_commands', std_msgs.msg.Int8, callback_smach, self)
@@ -29,6 +29,8 @@ class Waiting(smach.State):
             return 'preempted'
         # State execution here
         rospy.loginfo('Executing state WAITING')
+
+        userdata.wait_midcross_out = False # An annoying feature of smach
         rospy.sleep(0.2)
 
         if self.preempt_requested():
@@ -53,7 +55,7 @@ class SignalWaiting(smach.State):
     def __init__(self):
         smach.State.__init__(self,
                              outcomes=['signalwait','timeout','cross','preempted'],
-                             input_keys=['sigwait_dest_in'],
+                             input_keys=['sigwait_dest_in','sigwait_midcross_in'],
                              output_keys=['sigwait_dest_in'])
         self.ready = False
         self.pub = rospy.Publisher('light_commands', std_msgs.msg.Int8, queue_size=10)
@@ -64,25 +66,28 @@ class SignalWaiting(smach.State):
             return 'preempted'
         rospy.loginfo('Executing state SIGNALWAITING')
 
-        self.pub.publish(data = 1)
-        rospy.sleep(0.2)
 
-        if self.preempt_requested():
-            self.service_preempt()
-            return 'preempted'
-
-        if self.ready:
-            self.ready = False
+        if userdata.sigwait_midcross_in:
             return 'cross'
         else:
-            return 'signalwait'
+            self.pub.publish(data = 1)
+            rospy.sleep(0.2)
+
+            if self.preempt_requested():
+                self.service_preempt()
+                return 'preempted'
+
+            if self.ready:
+                self.ready = False
+                return 'cross'
+            else:
+                return 'signalwait'
 
     def sub_callback(self, data):
         if data.data == 99:
             self.ready = True
         else:
             self.ready = False
-
 
 class BeginCrossing(smach.State):
     """ The state where we tell the base to start the move op. """
@@ -119,7 +124,7 @@ class Crossing(smach.State):
         smach.State.__init__(self,
                              outcomes=['succeeded','preempted','replanned'],
                              input_keys=['cross_actcli_in'],
-                             output_keys=['cross_dest_out','cross_actcli_in']) # Need to mark as output so that the object is mutable
+                             output_keys=['cross_dest_out','cross_actcli_in','cross_midcross_out']) # Need to mark as output so that the object is mutable
         self.command = -1
         self.sub = rospy.Subscriber('user_commands', std_msgs.msg.Int8, callback_smach, self)
 
@@ -132,6 +137,7 @@ class Crossing(smach.State):
         self.command = -1
 
         client = userdata.cross_actcli_in
+        userdata.cross_midcross_out = True
 
         TIMEOUT = 45.0
         TIMESTEP = 0.25
@@ -148,6 +154,7 @@ class Crossing(smach.State):
 
             finished = client.wait_for_result(rospy.Duration.from_sec(TIMESTEP))
             if finished:
+                userdata.cross_midcross_out = False
                 break
         res = client.get_result()
         rospy.loginfo(res)
@@ -194,14 +201,15 @@ def main():
                                                 'signalwait':'SIGNALWAITING',
                                                 'shutdown':'succeeded',
                                                 'preempted':'succeeded'},
-                                   remapping={'wait_dest_out':'user_dest'})
+                                   remapping={'wait_dest_out':'user_dest',
+                                              'wait_midcross_out':'is_midcross'})
             smach.StateMachine.add('SIGNALWAITING', SignalWaiting(),
                                    transitions={'signalwait':'SIGNALWAITING',
                                                 'cross':'BEGINCROSSING',
                                                 'timeout':'WAITING',
                                                 'preempted':'WAITING'},
-                                   remapping={'sigwait_dest_in':'user_dest'})#,
-                                              #'sigwait_dest_out':'user_dest'})
+                                   remapping={'sigwait_dest_in':'user_dest',
+                                              'sigwait_midcross_in':'is_midcross'})
             smach.StateMachine.add('BEGINCROSSING', BeginCrossing(),
                                    transitions={'succeeded':'CROSSING',
                                                 'preempted':'WAITING'},
@@ -212,7 +220,8 @@ def main():
                                                 'preempted':'WAITING',
                                                 'replanned':'BEGINCROSSING'},
                                    remapping={'cross_actcli_in':'actcli',
-                                              'cross_dest_out':'user_dest'})
+                                              'cross_dest_out':'user_dest',
+                                              'cross_midcross_out':'is_midcross'})
                                                 
 
         smach.Concurrence.add('MAIN', sm)
