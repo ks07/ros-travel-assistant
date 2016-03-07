@@ -142,14 +142,12 @@ class Crossing(smach.State):
                 self.service_preempt()
                 return 'preempted'
             elif self.command != -1:
-                print 'CANCEL PLZ'
                 client.cancel_goal()
                 userdata.cross_dest_out = self.command
                 return 'replanned'
 
             finished = client.wait_for_result(rospy.Duration.from_sec(TIMESTEP))
             if finished:
-                print 'GOAL DONE'
                 break
         res = client.get_result()
         rospy.loginfo(res)
@@ -212,7 +210,7 @@ def main():
             smach.StateMachine.add('CROSSING', Crossing(),
                                    transitions={'succeeded':'WAITING',
                                                 'preempted':'WAITING',
-                                                'replanned':'SIGNALWAITING'},
+                                                'replanned':'BEGINCROSSING'},
                                    remapping={'cross_actcli_in':'actcli',
                                               'cross_dest_out':'user_dest'})
                                                 
