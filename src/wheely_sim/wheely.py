@@ -30,7 +30,7 @@ class Waiting(smach.State):
         # State execution here
         rospy.loginfo('Executing state WAITING')
 
-        userdata.wait_midcross_out = False # An annoying feature of smach
+        userdata.wait_midcross_out = -1 # An annoying feature of smach
         rospy.sleep(0.2)
 
         if self.preempt_requested():
@@ -61,15 +61,17 @@ class SignalWaiting(smach.State):
         self.pub = rospy.Publisher('light_commands', std_msgs.msg.Int8, queue_size=10)
         self.sub = rospy.Subscriber('crossing_signals', std_msgs.msg.Int8, callback_smach, self)
 
+        self.prev_dest = 0 # To recall previous destination
+
     def execute(self, userdata):
         if rospy.is_shutdown():
             return 'preempted'
         rospy.loginfo('Executing state SIGNALWAITING')
 
 
-        if userdata.sigwait_midcross_in:
-            return 'cross'
-        else:
+        if userdata.sigwait_midcross_in < 0:
+            self.prev_dest = userdata.sigwait_dest_in
+
             self.pub.publish(data = 1)
             rospy.sleep(0.2)
 
@@ -78,10 +80,24 @@ class SignalWaiting(smach.State):
                 return 'preempted'
 
             if self.ready:
-                self.ready = False
                 return 'cross'
             else:
                 return 'signalwait'
+        else:
+            if self.ready:
+                # Green lights, follow orders
+                self.prev_dest = userdata.sigwait_dest_in
+
+                return 'cross'
+            elif userdata.sigwait_midcross_in < 0.4:
+                # GO BACK - HOW DO WE KNOW?
+                userdata.sigwait_dest_in = not self.prev_dest
+                self.prev_dest = not self.prev_dest
+                return 'cross'
+            else:
+                # Too far now, keep going HOW DO WE KNOW?
+                userdata.sigwait_dest_in = self.prev_dest
+                return 'cross'
 
     def sub_callback(self, data):
         if data.data == 1:
@@ -95,7 +111,7 @@ class BeginCrossing(smach.State):
         smach.State.__init__(self,
                              outcomes=['succeeded','preempted'],
                              input_keys=['begincross_dest_in'],
-                             output_keys=['begincross_actcli_out'])
+                             output_keys=['begincross_actcli_out','begincross_dest_out'])
 
     def execute(self, userdata):
         if rospy.is_shutdown():
@@ -123,7 +139,7 @@ class Crossing(smach.State):
     def __init__(self):
         smach.State.__init__(self,
                              outcomes=['succeeded','preempted','replanned'],
-                             input_keys=['cross_actcli_in'],
+                             input_keys=['cross_actcli_in','cross_dest_in'],
                              output_keys=['cross_dest_out','cross_actcli_in','cross_midcross_out']) # Need to mark as output so that the object is mutable
         self.command = -1
         self.sub = rospy.Subscriber('user_commands', std_msgs.msg.Int8, callback_smach, self)
@@ -137,7 +153,7 @@ class Crossing(smach.State):
         self.command = -1
 
         client = userdata.cross_actcli_in
-        userdata.cross_midcross_out = True
+        userdata.cross_midcross_out = 0
 
         TIMEOUT = 45.0
         TIMESTEP = 0.25
@@ -149,12 +165,17 @@ class Crossing(smach.State):
                 return 'preempted'
             elif self.command != -1:
                 client.cancel_goal()
+                #userdata.cross_dest_out = self.command
+                client.wait_for_result(rospy.Duration.from_sec(10.0))
+                res = client.get_result()
+                rospy.loginfo('REPLAN RES: ' + str(res))
+                userdata.cross_midcross_out = res.pcnt_prog
                 userdata.cross_dest_out = self.command
                 return 'replanned'
 
             finished = client.wait_for_result(rospy.Duration.from_sec(TIMESTEP))
             if finished:
-                userdata.cross_midcross_out = False
+                userdata.cross_midcross_out = -1
                 break
         res = client.get_result()
         rospy.loginfo(res)
@@ -214,14 +235,16 @@ def main():
                                    transitions={'succeeded':'CROSSING',
                                                 'preempted':'WAITING'},
                                    remapping={'begincross_dest_in':'user_dest',
-                                              'begincross_actcli_out':'actcli'})
+                                              'begincross_actcli_out':'actcli',
+                                              'begincross_dest_out':'user_dest'})
             smach.StateMachine.add('CROSSING', Crossing(),
                                    transitions={'succeeded':'WAITING',
                                                 'preempted':'WAITING',
-                                                'replanned':'BEGINCROSSING'},
+                                                'replanned':'SIGNALWAITING'},
                                    remapping={'cross_actcli_in':'actcli',
                                               'cross_dest_out':'user_dest',
-                                              'cross_midcross_out':'is_midcross'})
+                                              'cross_midcross_out':'is_midcross',
+                                              'cross_dest_in':'user_dest'})
                                                 
 
         smach.Concurrence.add('MAIN', sm)

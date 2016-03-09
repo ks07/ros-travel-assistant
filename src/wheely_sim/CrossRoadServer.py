@@ -5,7 +5,7 @@ roslib.load_manifest('wheely_sim')
 import rospy
 import actionlib
 
-from wheely_sim.msg import CrossRoadAction, CrossRoadResult
+from wheely_sim.msg import CrossRoadAction, CrossRoadResult, CrossRoadFeedback
 from geometry_msgs.msg import Twist # For simple motor control
 
 class CrossRoadServer:
@@ -37,6 +37,7 @@ class CrossRoadServer:
             rospy.loginfo('Cross road not necessary.')
             res = CrossRoadResult()
             res.did_we_make_it = True
+            res.pcnt_prog = 1.0
             self.server.set_succeeded(result = res)
             return
         step_dist = gloc - self.location
@@ -52,15 +53,20 @@ class CrossRoadServer:
                 self.pub.publish(Twist())
                 res = CrossRoadResult()
                 res.did_we_make_it = 0
+                res.pcnt_prog = float(self.location) / abs(step_dist)
                 self.server.set_preempted(result = res)
                 return
             self.pub.publish(drive_cmd)
             self.location = self.location + cmp(step_dist,0) # Use cmp to get sign
+            fdbk = CrossRoadFeedback()
+            fdbk.pcnt_prog = float(self.location) / abs(step_dist)
+            self.server.publish_feedback(feedback = fdbk)
             rate.sleep()
         self.pub.publish(Twist()) # brake
         rospy.loginfo('Braking.')
         res = CrossRoadResult()
         res.did_we_make_it = 1
+        res.pcnt_prog = 1.0
         self.server.set_succeeded(result = res)
 
 if __name__ == '__main__':
