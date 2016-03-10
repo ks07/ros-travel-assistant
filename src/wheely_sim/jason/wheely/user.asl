@@ -11,5 +11,5 @@
 +!start
 	: true
 	<- wheely.save("pub,user_commands,1");
-	.send(wheely,achieve,location(b)).
+	.send(wheely,achieve,location(1)).
 
