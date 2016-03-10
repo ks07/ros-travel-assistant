@@ -65,6 +65,43 @@ last_cmd_time(0).
 	<- .print("Bad location: ", Y);
 	.fail.
 	
+// New move command, but we are on the road, need to wait for the current move to tell us where we are
+@linterrupt_red
++!location(Y)
+	: inTransit(_) & traffic(red)
+	<- .print("New move goal interrupting current move.");
+	.wait("+location(P)", 1000);
+	-inTransit;
+	.print("Unblocked, got progress of: ", P);
+	!location(Y).
+	
+@linterrupt_green
++!location(Y)
+	: inTransit(_) & not traffic(red)
+	<- .print("New move goal interrupting current move, but lights red.");
+	.wait("+location(P)", 1000);
+//	-inTransit(_);
+	.print("Unblocked, got progress of: ", P);
+	if (P < 0.4) {
+		// Haven't gone far enough, turn back.
+		.print("Turning back to 0...");
+		-inTransit(_);
+		!location(0);
+	} else {
+		if (P > 0.6) {
+			// Too close to 1, turn back (or perhaps carry on)
+			.print("Turning back to 1...");
+			-inTransit(_);
+			!location(1);
+		} else {
+			// Far enough to finish original order.
+			?inTransit(O);
+			-inTransit(_);
+			.print("Pushing on to original dest: ", O);
+			!location(O);
+		};
+	}.
+	
 // If we desire to be elsewhere, and the traffic is moving, need to wait.
 @l1
 +!location(Y)
@@ -74,35 +111,30 @@ last_cmd_time(0).
 	+wantToCross(Y);
 	.send(lights,achieve,traffic(red)).
 	
-// New move command, but we are on the road, need to wait for the current move to tell us where we are
-@linterrupt
-+!location(Y)
-	: inTransit
-	<- .print("New move goal interrupting current move.");
-	.wait("+location(P)", 1000);
-	-inTransit;
-	.print("Unblocked, got progress of: ", P);
-	!location(Y).
-	
 // If we desire to be elsewhere, and the traffic is stopped, move.
 @l2
 +!location(Y)
 //	: not location(Y)
-	<- ?traffic(red); 
-	.print("Crossing...");
-	+inTransit;
+	: traffic(red)
+	<- .print("Crossing...");
+	+inTransit(Y);
 	.wait("+!location(N)",60000,Elapsed);
 	if (Elapsed < 60000) {
 		// We were interrupted, cancel.
 		.print("Move command interrupted.");
 		// Need to know how far we've gone.
 		Pcnt_prog = Elapsed / 60000;
-		-+location(Pcnt_prog);
+		if (Y == 0) {
+			Loc_partial = 1 - Pcnt_prog;
+		} else {
+			Loc_partial = Pcnt_prog;
+		};
+		-+location(Loc_partial);
 	} else {
 		// Uninterrupted, location goal completed.
 		.print("Move completed uninterrupted.");
 		-+location(Y);
-		-inTransit;
+		-inTransit(_);
 	}.
 
 // When we come to learn that the traffic has been stopped, we can do goal
