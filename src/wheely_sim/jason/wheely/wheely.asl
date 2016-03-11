@@ -71,7 +71,7 @@ last_cmd_time(0).
 	: inTransit(_) & traffic(red)
 	<- .print("New move goal interrupting current move.");
 	.wait("+location(P)", 1000);
-	-inTransit;
+	-inTransit(_);
 	.print("Unblocked, got progress of: ", P);
 	!location(Y).
 	
@@ -86,19 +86,22 @@ last_cmd_time(0).
 		// Haven't gone far enough, turn back.
 		.print("Turning back to 0...");
 		-inTransit(_);
-		!location(0);
+		-+location(0); // Can ignore the time here, not important for testing?
+		//!location(0);
 	} else {
 		if (P > 0.6) {
 			// Too close to 1, turn back (or perhaps carry on)
 			.print("Turning back to 1...");
 			-inTransit(_);
-			!location(1);
+			-+location(1);
+			//!location(1);
 		} else {
 			// Far enough to finish original order.
 			?inTransit(O);
 			-inTransit(_);
 			.print("Pushing on to original dest: ", O);
-			!location(O);
+			-+location(0);
+			//!location(O);
 		};
 	}.
 	
