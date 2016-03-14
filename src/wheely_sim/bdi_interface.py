@@ -2,7 +2,12 @@
 
 import rospy
 import sys
-from std_msgs.msg import Int8
+import threading
+from std_msgs.msg import Int8,Empty
+
+def tsub_callback(msg):
+    global start_trigger
+    start_trigger.set()
 
 def setupPubs():
     pubs = {
@@ -21,12 +26,23 @@ def setupSubs():
     rospy.Subscriber('light_commands',Int8,sub_callback,(sub_rcvd,'light_commands'))
     return sub_rcvd
 
-def main(bdi_test_file):
+def main(bdi_test_file, trigger):
     rospy.init_node('bdi_interface', anonymous=True)
 
     pubs = setupPubs()
     sub_rcvd = setupSubs()
     rospy.sleep(0.5) # Need to sleep to allow connections to establish
+
+    if trigger:
+        tpub = rospy.Publisher('test_trigger',Empty,queue_size=1)
+        block = raw_input('Hit enter when all test drivers ready...')
+        tpub.publish()
+    else:
+        global start_trigger
+        start_trigger = threading.Event()
+        tsub = rospy.Subscriber('test_trigger',Empty,tsub_callback)
+        print 'Waiting for start signal...'
+        start_trigger.wait()
 
     with open(bdi_test_file, "r") as f:
         begin = True
@@ -58,7 +74,8 @@ def main(bdi_test_file):
     print 'Test finished.'
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        sys.exit("Usage: bdi_interface.py <bdi_test_file>")
+    if len(sys.argv) not in [2,3]:
+        sys.exit("Usage: bdi_interface.py <bdi_test_file> [-t]")
     bdi_test_file = sys.argv[1]
-    main(bdi_test_file)
+    trigger = (len(sys.argv) == 3)
+    main(bdi_test_file, trigger)
