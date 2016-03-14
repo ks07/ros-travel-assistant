@@ -18,46 +18,6 @@ last_cmd_time(0).
 //+!location(Y)
 //	: location(Y)
 //	<- .print("Already at our destination.").
-
-/* @la
-+!location(Y)
-	: not traffic(red) & last_cmd_time(LT) & LT > 0
-	<- .print("interrupt command rcvd");
-	wheely.unixtime(T);
-	?last_cmd_time(LT);
-	D = T - LT;
-	if (D < (0.4 * 60000)) {
-		// Less than 0.4 pcnt_prog so go back
-		.print("New cmd but turning back");
-		wheely.unixtime(MY_T);
-		?last_cmd_time(REC_T);
-		?REC_T <= MY_T;
-		-+last_cmd_time(MY_T);			
-		.wait(60000);
-		?last_cmd_time(NEW_T);
-		?NEW_T <= MY_T;
-		-+last_cmd_time(0);
-		!!location(Y);
-	} else {
-		// Too late to turn around, carry on
-		.print("New cmd, pushing on");
-		wheely.unixtime(MY_T);
-		?last_cmd_time(REC_T);
-		?REC_T <= MY_T;
-		-+last_cmd_time(MY_T);			
-		.wait(60000);
-		?last_cmd_time(NEW_T);
-		?NEW_T <= MY_T;
-		-+last_cmd_time(0);
-		?location(X);
-		if (X == a) {
-			Z = b;
-		} else {
-		    Z = a;
-		}
-		-+location(Z);
-		!!location(Y);
-	}. */
 	
 @lerror
 +!location(Y)
