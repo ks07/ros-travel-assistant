@@ -11,6 +11,10 @@ traffic(green).
 @t0
 +!traffic(C) : traffic(D) & C \== D
 	<- wheely.save("waitfor,light_commands,1");
+	.random(R);
+	W = R * 2000;
+	.wait(W);
+	wheely.save("paramdelay,light_response_time");
 	-+traffic(C);
 	?traffic(E);
 	.print("My lights are now ", E);

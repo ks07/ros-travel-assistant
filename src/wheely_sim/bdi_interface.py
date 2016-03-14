@@ -26,7 +26,8 @@ def setupSubs():
     rospy.Subscriber('light_commands',Int8,sub_callback,(sub_rcvd,'light_commands'))
     return sub_rcvd
 
-IGNORES_DELTA = ['waitfor','clear']
+IGNORES_DELTA = ['waitfor','clear','paramdelay']
+PARAM_PFX = '/bdiparam/'
 
 def main(bdi_test_file, trigger):
     rospy.init_node('bdi_interface', anonymous=True)
@@ -74,6 +75,11 @@ def main(bdi_test_file, trigger):
                 # Clears the last seen signal from a1
                 print 'Cleared ',args[1]
                 del sub_rcvd[args[1]]
+            elif args[0] == 'paramdelay':
+                # Waits for some amount of time, parameterised
+                wait_time = float(rospy.get_param(PARAM_PFX + args[1])) / 1000
+                print 'Waiting at ',args[1],' for ',wait_time
+                rospy.sleep(wait_time)
     print 'Test finished.'
 
 if __name__ == "__main__":
