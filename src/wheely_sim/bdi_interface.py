@@ -26,6 +26,8 @@ def setupSubs():
     rospy.Subscriber('light_commands',Int8,sub_callback,(sub_rcvd,'light_commands'))
     return sub_rcvd
 
+IGNORES_DELTA = ['waitfor','clear']
+
 def main(bdi_test_file, trigger):
     rospy.init_node('bdi_interface', anonymous=True)
 
@@ -56,7 +58,8 @@ def main(bdi_test_file, trigger):
                 begin = False
             delta = (ts - prev_ts) / 1000
             print delta,args
-            rospy.sleep(delta)
+            if args[0] not in IGNORES_DELTA:
+                rospy.sleep(delta)
             if args[0] == 'pub':
                 # Publish a2 by a1
                 print 'Publishing ',args[2],' to ',args[1]
