@@ -24,6 +24,7 @@ traffic(green).
 +!traffic_timeout(red)
 	: true
 	<- .wait(8000);
+	wheely.save("paramdelay,light_crossing_time");
 	-+traffic(green);
 	.print("Lights switched back to green.").
 	
