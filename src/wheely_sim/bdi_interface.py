@@ -29,9 +29,18 @@ def main(bdi_test_file):
     rospy.sleep(0.5) # Need to sleep to allow connections to establish
 
     with open(bdi_test_file, "r") as f:
+        begin = True
+        ts = 0
         for line in f:
             args = line.strip().split(',')
-            print args
+            prev_ts = ts
+            ts = float(args.pop(0))
+            if begin:
+                prev_ts = ts
+                begin = False
+            delta = (ts - prev_ts) / 1000
+            print delta,args
+            rospy.sleep(delta)
             if args[0] == 'pub':
                 # Publish a2 by a1
                 print 'Publishing ',args[2],' to ',args[1]
