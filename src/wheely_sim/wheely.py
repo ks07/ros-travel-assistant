@@ -14,6 +14,22 @@ def callback_smach(data,state):
     rospy.loginfo('Received: ' + str(data) + ' for ' + type(state).__name__)
     state.sub_callback(data)
 
+class SubscriberContainer(object):
+    """ Holder for subscribers so they can be shared amongst states. """
+
+    def __init__(self):
+        self.uc_data = -1
+        self.uc_sub = rospy.Subscriber('user_commands', std_msgs.msg.Int8, self.uc_callback)
+
+        self.cs_ready = -1
+        self.cs_sub = rospy.Subscriber('crossing_signals', std_msgs.msg.Int8, self.cs_callback)
+
+    def uc_callback(self,msg):
+        self.uc_data = msg.data
+
+    def cs_callback(self,msg):
+        self.cs_ready = msg.data == 1
+
 class Waiting(smach.State):
     """ The state where wheely is idle on the pavement. """
     def __init__(self):
@@ -145,6 +161,7 @@ class Crossing(smach.State):
         self.sub = rospy.Subscriber('user_commands', std_msgs.msg.Int8, callback_smach, self)
 
     def execute(self, userdata):
+        global subs
         if rospy.is_shutdown():
             return 'preempted'
         rospy.loginfo('Executing state CROSSING')
@@ -172,6 +189,16 @@ class Crossing(smach.State):
                 userdata.cross_midcross_out = res.pcnt_prog
                 userdata.cross_dest_out = self.command
                 return 'replanned'
+            elif not subs.cs_ready:
+                # Lights have changed while we were crossing
+                client.cancel_goal()
+                client.wait_for_result(rospy.Duration.from_sec(10.0))
+                res = client.get_result()
+                rospy.loginfo('TOO SLOW RES: ' + str(res))
+                userdata.cross_midcross_out = res.pcnt_prog
+                userdata.cross_dest_out = userdata.cross_dest_in
+                subs.cs_ready = True
+                return 'replanned'
 
             finished = client.wait_for_result(rospy.Duration.from_sec(TIMESTEP))
             if finished:
@@ -198,6 +225,10 @@ def concurrence_cb(states):
 
 def main():
     rospy.init_node('wheely_node')
+
+    # Use a global, better than forcing smach to pass this around
+    global subs
+    subs = SubscriberContainer()
 
     sm_con = smach.Concurrence(outcomes=['continue','done'],
                                default_outcome='continue',
