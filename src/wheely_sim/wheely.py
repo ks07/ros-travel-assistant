@@ -100,20 +100,7 @@ class SignalWaiting(smach.State):
             else:
                 return 'signalwait'
         else:
-            if self.ready:
-                # Green lights, follow orders
-                self.prev_dest = userdata.sigwait_dest_in
-
-                return 'cross'
-            elif userdata.sigwait_midcross_in < 0.4:
-                # GO BACK - HOW DO WE KNOW?
-                userdata.sigwait_dest_in = not self.prev_dest
-                self.prev_dest = not self.prev_dest
-                return 'cross'
-            else:
-                # Too far now, keep going HOW DO WE KNOW?
-                userdata.sigwait_dest_in = self.prev_dest
-                return 'cross'
+            return 'cross'
 
     def sub_callback(self, data):
         if data.data == 1:
