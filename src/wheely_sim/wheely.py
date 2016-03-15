@@ -151,10 +151,10 @@ class BeginCrossing(smach.State):
         return 'succeeded'
 
 class Crossing(smach.State):
-    """ The state where wheel is moving across the road. """
+    """ The state where wheely is moving across the road. """
     def __init__(self):
         smach.State.__init__(self,
-                             outcomes=['succeeded','preempted','replanned'],
+                             outcomes=['succeeded','preempted','replanned','interrupted'],
                              input_keys=['cross_actcli_in','cross_dest_in'],
                              output_keys=['cross_dest_out','cross_actcli_in','cross_midcross_out']) # Need to mark as output so that the object is mutable
         self.command = -1
@@ -197,8 +197,8 @@ class Crossing(smach.State):
                 rospy.loginfo('TOO SLOW RES: ' + str(res))
                 userdata.cross_midcross_out = res.pcnt_prog
                 userdata.cross_dest_out = userdata.cross_dest_in
-                subs.cs_ready = True
-                return 'replanned'
+                #subs.cs_ready = True
+                return 'interrupted'
 
             finished = client.wait_for_result(rospy.Duration.from_sec(TIMESTEP))
             if finished:
@@ -211,6 +211,58 @@ class Crossing(smach.State):
 
     def sub_callback(self, data):
         self.command = data.data
+
+class Retreating(smach.State):
+    """ The state where wheely is getting off the road as the lights have changed. """
+    def __init__(self):
+        smach.State.__init__(self,
+                             outcomes=['succeeded','preempted'],
+                             input_keys=['rtrt_dest_in','rtrt_midcross_in'],
+                             output_keys=[])
+
+    def execute(self, userdata):
+        global subs,client
+        if rospy.is_shutdown():
+            return 'preempted'
+        rospy.loginfo('Executing state RETREATING')
+
+        print userdata.rtrt_midcross_in, userdata.rtrt_dest_in
+        if userdata.rtrt_midcross_in < 0.4 and userdata.rtrt_dest_in:
+            # Heading from 0 to 1, close to pavement, turn back
+            print 'A'
+            retreat_to = 0
+        elif userdata.rtrt_midcross_in > 0.6 and not userdata.rtrt_dest_in:
+            # Heading from 1 to 0, close to pavement, turn back
+            retreat_to = 1
+            print 'B'
+        else:
+            # Too far now, keep going
+            print 'C'
+            retreat_to = userdata.rtrt_dest_in
+
+
+        goal = CrossRoadGoal()
+        goal.crossing_id = retreat_to
+        rospy.loginfo('Asking base to drive to ' + str(goal.crossing_id))
+        client.send_goal(goal)
+
+        TIMEOUT = 45.0
+        TIMESTEP = 0.25
+        
+        for i in range(int(TIMEOUT/TIMESTEP)):
+            if self.preempt_requested():
+                client.cancel_goal()
+                self.service_preempt()
+                return 'preempted'
+
+            finished = client.wait_for_result(rospy.Duration.from_sec(TIMESTEP))
+            if finished:
+                userdata.cross_midcross_out = -1
+                break
+        res = client.get_result()
+        rospy.loginfo(res)
+
+        return 'succeeded'
 
 def monitor_commands_cb(ud,msg):
     # ud is a smach.user_data.Remapper instance
@@ -229,6 +281,9 @@ def main():
     # Use a global, better than forcing smach to pass this around
     global subs
     subs = SubscriberContainer()
+    global client
+    client = actionlib.SimpleActionClient('cross_road', CrossRoadAction)
+    client.wait_for_server()
 
     sm_con = smach.Concurrence(outcomes=['continue','done'],
                                default_outcome='continue',
@@ -271,11 +326,17 @@ def main():
             smach.StateMachine.add('CROSSING', Crossing(),
                                    transitions={'succeeded':'WAITING',
                                                 'preempted':'WAITING',
-                                                'replanned':'SIGNALWAITING'},
+                                                'replanned':'SIGNALWAITING',
+                                                'interrupted':'RETREATING'},
                                    remapping={'cross_actcli_in':'actcli',
                                               'cross_dest_out':'user_dest',
                                               'cross_midcross_out':'is_midcross',
                                               'cross_dest_in':'user_dest'})
+            smach.StateMachine.add('RETREATING', Retreating(),
+                                   transitions={'succeeded':'WAITING',
+                                                'preempted':'WAITING'},
+                                   remapping={'rtrt_midcross_in':'is_midcross',
+                                              'rtrt_dest_in':'user_dest'})
                                                 
 
         smach.Concurrence.add('MAIN', sm)
