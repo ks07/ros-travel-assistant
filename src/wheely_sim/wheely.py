@@ -10,6 +10,13 @@ from wheely_sim.msg import CrossRoadAction, CrossRoadGoal
 
 from coverage import Coverage
 
+from itertools import tee, izip
+def pairwise(iterable):
+    "s -> (s0,s1), (s1,s2), (s2, s3), ..."
+    a, b = tee(iterable)
+    next(b, None)
+    return izip(a, b)
+
 def callback_smach(data,state):
     rospy.loginfo('Received: ' + str(data) + ' for ' + type(state).__name__)
     state.sub_callback(data)
@@ -173,7 +180,7 @@ class Crossing(smach.State):
                 client.wait_for_result(rospy.Duration.from_sec(10.0))
                 res = client.get_result()
                 rospy.loginfo('REPLAN RES: ' + str(res))
-                userdata.cross_midcross_out = res.pcnt_prog
+                userdata.cross_midcross_out = res.location
                 userdata.cross_dest_out = self.command
                 return 'replanned'
             elif not subs.cs_ready:
@@ -182,7 +189,7 @@ class Crossing(smach.State):
                 client.wait_for_result(rospy.Duration.from_sec(10.0))
                 res = client.get_result()
                 rospy.loginfo('TOO SLOW RES: ' + str(res))
-                userdata.cross_midcross_out = res.pcnt_prog
+                userdata.cross_midcross_out = res.location
                 userdata.cross_dest_out = userdata.cross_dest_in
                 #subs.cs_ready = True
                 return 'interrupted'
@@ -214,19 +221,26 @@ class Retreating(smach.State):
         rospy.loginfo('Executing state RETREATING')
 
         print userdata.rtrt_midcross_in, userdata.rtrt_dest_in
-        if userdata.rtrt_midcross_in < 0.4 and userdata.rtrt_dest_in:
-            # Heading from 0 to 1, close to pavement, turn back
-            print 'A'
-            retreat_to = 0
-        elif userdata.rtrt_midcross_in > 0.6 and not userdata.rtrt_dest_in:
-            # Heading from 1 to 0, close to pavement, turn back
-            retreat_to = 1
-            print 'B'
-        else:
-            # Too far now, keep going
-            print 'C'
-            retreat_to = userdata.rtrt_dest_in
+        pos = userdata.rtrt_midcross_in
+        # Turn around only if less than this far of the way across, to simulate the
+        # extra time required to turn around
+        turnback_ratio = 0.4
+        stops = [0.0,0.5,1.0]
 
+        for l,r in pairwise(stops):
+            if r > pos:
+                break
+
+        gap = r - l
+        cutoff = turnback_ratio * gap
+        print r,l,cutoff,pos
+        if r - pos < cutoff:
+            retreat_to = r
+        elif pos - l < cutoff:
+            retreat_to = l
+        else:
+            retreat_to = userdata.rtrt_dest_in
+        rospy.loginfo('Retreating to ' + str(retreat_to))
 
         goal = CrossRoadGoal()
         goal.crossing_id = retreat_to
@@ -244,7 +258,6 @@ class Retreating(smach.State):
 
             finished = client.wait_for_result(rospy.Duration.from_sec(TIMESTEP))
             if finished:
-                userdata.cross_midcross_out = -1
                 break
         res = client.get_result()
         rospy.loginfo(res)

@@ -1,9 +1,11 @@
 # Define the goal
-bool crossing_id # Specify the crossing to use
+float32 crossing_id # Specify the crossing to use
 ---
 # Define the result
 bool did_we_make_it
 float32 pcnt_prog
+float32 location
 ---
 # Define a feedback message
 float32 pcnt_prog
+float32 location
