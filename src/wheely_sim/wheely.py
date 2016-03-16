@@ -225,7 +225,10 @@ class Retreating(smach.State):
         # Turn around only if less than this far of the way across, to simulate the
         # extra time required to turn around
         turnback_ratio = 0.4
-        stops = [0.0,0.5,1.0]
+        if rospy.get_param('/wheely_sim/has_island', 0):
+            stops = [0.0,0.5,1.0]
+        else:
+            stops = [0.0,1.0]
 
         for l,r in pairwise(stops):
             if r > pos:
