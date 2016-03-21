@@ -18,7 +18,7 @@ def setupPubs():
     return pubs;
 
 def sub_callback(data,args):
-    print 'Got ',data,args
+    rospy.logdebug('Got ' + str(data) + str(args))
     sub_rcvd,tag = args
     sub_rcvd[tag] = data.data
 
