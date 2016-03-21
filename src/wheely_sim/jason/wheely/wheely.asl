@@ -2,7 +2,6 @@
 
 /* Initial beliefs and rules */
 location(0).
-last_cmd_time(0).
 
 /* Initial goals */
 
@@ -48,8 +47,9 @@ last_cmd_time(0).
 //	: not location(Y) & not traffic(red)
 	: not traffic(red)
 	<- .print("Asking lights to stop traffic.");
-	+wantToCross(Y);
-	.send(lights,achieve,traffic(red)).
+	.send(lights,achieve,traffic(red));
+	.wait(traffic(red),20000);
+	!location(Y).
 	
 // If we desire to be elsewhere, and the traffic is stopped, move.
 @l2
@@ -76,14 +76,6 @@ last_cmd_time(0).
 		-+location(Y);
 		-inTransit(_);
 	}.
-
-// When we come to learn that the traffic has been stopped, we can do goal
-@red
-+traffic(red)[source(lights)]
-	: wantToCross(Y)
-	<- .print("Traffic has stopped for us!");
-	!location(Y);
-	-wantToCross(Y).
 	
 @green
 +traffic(green)[source(lights)]
