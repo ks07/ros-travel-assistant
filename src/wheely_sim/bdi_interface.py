@@ -3,6 +3,7 @@
 import rospy
 import sys
 import threading
+import random
 from std_msgs.msg import Int8,Empty
 
 def tsub_callback(msg):
@@ -77,10 +78,16 @@ def main(bdi_test_file, trigger):
                 del sub_rcvd[args[1]]
             elif args[0] == 'paramdelay':
                 # Waits for some amount of time, parameterised
-                wait_time = float(rospy.get_param(PARAM_PFX + args[1])) / 1000
+                wait_time = get_param(args[1])
+                wait_time = wait_time / 1000
                 print 'Waiting at ',args[1],' for ',wait_time
                 rospy.sleep(wait_time)
     print 'Test finished.'
+
+def get_param(key):
+    bounds = rospy.get_param(PARAM_PFX + key)
+    v = random.uniform(*bounds)
+    return v
 
 if __name__ == "__main__":
     if len(sys.argv) not in [2,3]:
