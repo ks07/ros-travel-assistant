@@ -11,7 +11,9 @@ location(0).
 
 +!start
 	: true
-	<- !location(1).
+	<- for ( .member(D,[1,0,1,0,1,0,1]) ) {
+		!location(D);
+	}.
 
 @l1
 +!location(L)
