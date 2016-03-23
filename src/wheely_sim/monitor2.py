@@ -4,21 +4,35 @@ import rospy
 import smach
 import smach_ros
 import threading
+import itertools
 from std_msgs.msg import Int8
 from nav_msgs.msg import Odometry
 
+# From itertools recipes
+def grouper(iterable, n, fillvalue=None):
+    "Collect data into fixed-length chunks or blocks"
+    # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx
+    args = [iter(iterable)] * n
+    return itertools.izip_longest(fillvalue=fillvalue, *args)
+
 def within_road(position):
     # TODO: Road bounds need to be parameterised, really
-    return position.y < 2.75 and position.y > -2.85
+    areas = rospy.get_param('/wheely_sim/road_areas')
+    for top,bot in grouper(areas, 2, -3.0):
+        if position.y < top and position.y > bot:
+            return True
+    return False
 
 class TrafficTrigger(smach.State):
     def __init__(self):
         smach.State.__init__(self,
                              outcomes=['triggered','inactive','triggerwait'],
                              output_keys=['tt_onroad_out'])
+        self.trigger = threading.Event()
+        # Assume lights start red, so should trigger immediately
+        self.trigger.set()
         self.light_sub = rospy.Subscriber('crossing_signals', Int8, self.light_cb)
         self.odom_sub = rospy.Subscriber('base_pose_ground_truth', Odometry, self.odom_cb)
-        self.trigger = threading.Event()
         self.onroad = False
 
     def light_cb(self, msg):
@@ -51,6 +65,8 @@ class LocationChecker(smach.State):
         self.light_sub = rospy.Subscriber('crossing_signals', Int8, self.light_cb)
         self.odom_sub = rospy.Subscriber('base_pose_ground_truth', Odometry, self.odom_cb)
         self.change = threading.Event()
+        self.reset = False
+        self.onroad = False
     
     def light_cb(self, msg):
         if msg.data == 1:
@@ -87,6 +103,8 @@ class RoadWait(smach.State):
         self.light_sub = rospy.Subscriber('crossing_signals', Int8, self.light_cb)
         self.odom_sub = rospy.Subscriber('base_pose_ground_truth', Odometry, self.odom_cb)
         self.change = threading.Event()
+        self.reset = False
+        self.onroad = False
     
     def light_cb(self, msg):
         if msg.data == 1:
