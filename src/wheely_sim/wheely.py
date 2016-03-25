@@ -86,11 +86,15 @@ class SignalWaiting(smach.State):
 
         self.prev_dest = 0 # To recall previous destination
 
+        self.tm1_pub = rospy.Publisher('test_monitor1', std_msgs.msg.Empty, queue_size=1)
+
     def execute(self, userdata):
         if rospy.is_shutdown():
             return 'preempted'
         rospy.loginfo('Executing state SIGNALWAITING')
 
+        # Assertion monitor
+        self.tm1_pub.publish()
 
         if userdata.sigwait_midcross_in < 0:
             self.prev_dest = userdata.sigwait_dest_in
