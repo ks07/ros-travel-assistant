@@ -15,7 +15,8 @@ if enable_island:
     rospy.set_param('/wheely_sim/road_areas',[2.75,0.3,-0.3,-2.85])
 else:
     rospy.set_param('/wheely_sim/has_island',0)
-    rospy.set_param('/wheely_sim/road_areas',[2.75,-2.85])
+    rospy.set_param('/wheely_sim/road_areas',[2.75,-2.85]) # high to low
+rospy.set_param('/wheely_sim/map_bounds',[-3.2,3.2]) # low then high
 
 rospy.set_param('/bdiparam/light_response_time',light_response_time)
 rospy.set_param('/bdiparam/light_crossing_time',light_crossing_time)

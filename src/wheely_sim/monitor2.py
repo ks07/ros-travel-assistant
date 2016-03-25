@@ -26,8 +26,7 @@ def within_road(position):
 class TrafficTrigger(smach.State):
     def __init__(self):
         smach.State.__init__(self,
-                             outcomes=['triggered','inactive','triggerwait'],
-                             output_keys=['tt_onroad_out'])
+                             outcomes=['triggered','inactive','triggerwait'])
         self.trigger = threading.Event()
         # Assume lights start red, so should trigger immediately
         self.trigger.set()
