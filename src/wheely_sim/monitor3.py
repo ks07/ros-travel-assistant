@@ -33,7 +33,6 @@ def nearest_refuges(position):
             # Found the current interval, pick out the preceeding and following gaps.
             prevint = (eareas[i-1], top)
             nextint = (bot, eareas[i+2])
-            rospy.loginfo('Given position:' + str(position.y) + ' chose ' + str(prevint) + str(nextint))
             return (prevint, nextint)
     rospy.logerr('Refuge search failed!')
     return False
@@ -91,13 +90,10 @@ class RefugeChecker(smach.State):
     def light_cb(self, msg):
         self.green = msg.data == 1
         self.change.set()
-        rospy.loginfo('set green')
 
     def odom_cb(self, msg):
         # Need to check off road -and- stopped
         if msg.twist.twist.linear.y == 0.0 and not within_road(msg.pose.pose.position):
-            if self.pref:
-                rospy.loginfo('ooh wee rick good job we stopped at' + str(msg.pose.pose.position.y))
             # check if we're in preferred
             if self.pref:
                 y = msg.pose.pose.position.y
@@ -118,9 +114,6 @@ class RefugeChecker(smach.State):
         gap = abs(spaces[0][1] - spaces[1][0])
         d1 = abs(y - spaces[0][1]) / gap
         d2 = abs(y - spaces[1][0]) / gap
-        rospy.loginfo('gap' + str(gap))
-        rospy.loginfo('d1' + str(d1))
-        rospy.loginfo('d2' + str(d2))
         
         if d1 < 0.3:
             # Should go here
@@ -132,7 +125,6 @@ class RefugeChecker(smach.State):
             # Go to either
             self.pref = None
 
-        rospy.loginfo('pref' + str(self.pref))
         self.change.wait()
 
         if self.green:
@@ -147,7 +139,7 @@ class RefugeChecker(smach.State):
 
 
 def main():
-	rospy.init_node('assertion2', anonymous=True)
+	rospy.init_node('assertion3', anonymous=True)
 
     	sm = smach.StateMachine(outcomes=['done'])
 
