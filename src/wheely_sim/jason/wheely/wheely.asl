@@ -2,11 +2,16 @@
 
 /* Initial beliefs and rules */
 location(0).
+gaze(0.0).
 
 /* Initial goals */
 
 
 /* Plans */
+
+@printgaze
++gaze(C)
+	<- .print("Received gaze of ", C).
 
 @printloc
 +location(L)
@@ -55,7 +60,7 @@ location(0).
 @l2
 +!location(Y)
 //	: not location(Y)
-	: traffic(red)
+	: traffic(red) & gaze(C) & C >= 0.8
 	<- .print("Crossing...");
 	+inTransit(Y);
 	.wait("+interrupt",6000,Elapsed);
@@ -76,6 +81,14 @@ location(0).
 		-+location(Y);
 		-inTransit(_);
 	}.
+
+// Traffic stopped but gaze not detected	
+@l3
++!location(Y)
+	: traffic(red)
+	<- .print("Gaze not detected!");
+	.wait(gaze(C) & C >= 0.8, 20000);
+	!location(Y).
 	
 @green
 +traffic(green)[source(lights)]

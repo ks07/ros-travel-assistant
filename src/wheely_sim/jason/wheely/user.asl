@@ -20,11 +20,20 @@ location(0).
 	: not location(L)
 	<- wheely.save("pub,user_commands,",L);
 	.send(wheely,achieve,location(L));
+	.wait(2000);
+	.broadcast(untell,gaze(_));
+	wheely.save("paramdelay,gazewait");
+	.broadcast(tell,gaze(0.85));
+	wheely.save("pub,gaze_sensor,0.85");
 	.wait(10000);
 	.send(wheely,askOne,location(N),location(N));
 	-+location(N);
 	?location(L);
-	.print("Made it to ",L).
+	.print("Made it to ",L);
+	.broadcast(untell,gaze(_));
+	wheely.save("paramdelay,gazewait2");
+	.broadcast(tell,gaze(0.4));
+	wheely.save("pub,gaze_sensor,0.4").
 
 @lsame
 +!location(L)
