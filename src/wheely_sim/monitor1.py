@@ -22,7 +22,7 @@ class CommandTrigger(smach.State):
 
     def execute(self, userdata):
         rospy.loginfo('Waiting for command.')
-        triggered = self.trigger.wait(10000)
+        triggered = self.trigger.wait(30000)
         if triggered:
             userdata.ct_time_out = self.ttime
             self.trigger.clear()

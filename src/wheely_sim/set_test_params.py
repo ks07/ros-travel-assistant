@@ -6,9 +6,9 @@ rospy.init_node('set_test_params')
 # Configuration
 enable_island = True
 light_response_time = [0,10000]
-light_crossing_time = [0,10000]
-gaze_wait_time = [0,5000]
-gaze_wait_time_2 = [0,5000]
+light_crossing_time = [5000,15000]
+gaze_wait_time = [0,500]
+gaze_wait_time_2 = [0,500]
 
 
 # Set the parameters

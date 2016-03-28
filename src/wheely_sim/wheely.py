@@ -4,6 +4,8 @@ import rospy
 import smach
 import smach_ros
 import actionlib
+import threading
+import time
 import std_msgs.msg
 
 from wheely_sim.msg import CrossRoadAction, CrossRoadGoal
@@ -85,6 +87,7 @@ class SignalWaiting(smach.State):
         self.pub = rospy.Publisher('light_commands', std_msgs.msg.Int8, queue_size=10)
         self.sub = rospy.Subscriber('crossing_signals', std_msgs.msg.Int8, self.sub_callback)
         self.uasub = rospy.Subscriber('gaze_sensor', std_msgs.msg.Float32, self.uasub_callback)
+        self.trigger = threading.Event()
 
         self.prev_dest = 0 # To recall previous destination
 
@@ -95,36 +98,46 @@ class SignalWaiting(smach.State):
             return 'preempted'
         rospy.loginfo('Executing state SIGNALWAITING')
 
-        # Assertion monitor
-        self.tm1_pub.publish()
-
         if userdata.sigwait_midcross_in < 0:
             self.prev_dest = userdata.sigwait_dest_in
 
             self.pub.publish(data = 1)
-            rospy.sleep(0.2)
+            
+            # Timeout after 30 seconds
+            success = self.trigger.wait(25.0)
 
             if self.preempt_requested():
                 self.service_preempt()
                 return 'preempted'
 
-            if self.ready and self.gaze:
+            if success:
+                # Assertion monitor
+                self.tm1_pub.publish()
+
                 return 'cross'
             else:
-                return 'signalwait'
+                # Assertion monitor
+                self.tm1_pub.publish()
+
+                return 'timeout'
         else:
             return 'cross'
 
     def sub_callback(self, data):
-        if data.data == 1:
-            self.ready = True
+        self.ready = data.data == 1
+        if self.ready and self.gaze:
+            self.trigger.set()
         else:
-            self.ready = False
+            self.trigger.clear()
 
     def uasub_callback(self, msg):
         # Receives the gaze tracking information as a certainty percentage
         # If at least 80% certain, do the crossing
         self.gaze = msg.data >= 0.8
+        if self.gaze and self.ready:
+            self.trigger.set()
+        else:
+            self.trigger.clear()
 
 class BeginCrossing(smach.State):
     """ The state where we tell the base to start the move op. """
