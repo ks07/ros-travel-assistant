@@ -12,9 +12,9 @@ def tsub_callback(msg):
 
 def setupPubs():
     pubs = {
-        'user_commands': rospy.Publisher('user_commands',Int8,queue_size=10),
-        'crossing_signals': rospy.Publisher('crossing_signals',Int8,queue_size=1),
-        'gaze_sensor': rospy.Publisher('gaze_sensor',Float32,queue_size=1)
+        'user_commands': (rospy.Publisher('user_commands',Int8,queue_size=10),int),
+        'crossing_signals': (rospy.Publisher('crossing_signals',Int8,queue_size=1),int),
+        'gaze_sensor': (rospy.Publisher('gaze_sensor',Float32,queue_size=1),float)
     }
     return pubs;
 
@@ -66,7 +66,8 @@ def main(bdi_test_file, trigger):
             if args[0] == 'pub':
                 # Publish a2 by a1
                 print 'Publishing ',args[2],' to ',args[1]
-                pubs[args[1]].publish(data = int(args[2]))
+                pset = pubs[args[1]]
+                pset[0].publish(data = pset[1](args[2]))
                 rospy.sleep(0.5)
             elif args[0] == 'waitfor':
                 # Wait until we see a2 from a1

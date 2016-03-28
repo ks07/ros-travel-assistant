@@ -7,6 +7,8 @@ rospy.init_node('set_test_params')
 enable_island = True
 light_response_time = [0,10000]
 light_crossing_time = [0,10000]
+gaze_wait_time = [0,5000]
+gaze_wait_time_2 = [0,5000]
 
 
 # Set the parameters
@@ -20,3 +22,5 @@ rospy.set_param('/wheely_sim/map_bounds',[-3.2,3.2]) # low then high
 
 rospy.set_param('/bdiparam/light_response_time',light_response_time)
 rospy.set_param('/bdiparam/light_crossing_time',light_crossing_time)
+rospy.set_param('/bdiparam/gazewait',gaze_wait_time)
+rospy.set_param('/bdiparam/gazewait2',gaze_wait_time_2)
