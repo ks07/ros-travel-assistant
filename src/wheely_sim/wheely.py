@@ -214,9 +214,9 @@ class Retreating(smach.State):
     """ The state where wheely is getting off the road as the lights have changed. """
     def __init__(self):
         smach.State.__init__(self,
-                             outcomes=['succeeded','preempted'],
+                             outcomes=['succeeded','preempted','paused'],
                              input_keys=['rtrt_dest_in','rtrt_midcross_in'],
-                             output_keys=[])
+                             output_keys=['rtrt_dest_out','rtrt_midcross_out'])
 
     def execute(self, userdata):
         global subs,client
@@ -249,6 +249,8 @@ class Retreating(smach.State):
             retreat_to = userdata.rtrt_dest_in
         rospy.loginfo('Retreating to ' + str(retreat_to))
 
+        differs = userdata.rtrt_dest_in != retreat_to
+
         goal = CrossRoadGoal()
         goal.crossing_id = retreat_to
         rospy.loginfo('Asking base to drive to ' + str(goal.crossing_id))
@@ -269,7 +271,13 @@ class Retreating(smach.State):
         res = client.get_result()
         rospy.loginfo(res)
 
-        return 'succeeded'
+        userdata.rtrt_midcross_out = -1
+
+        if differs:
+            userdata.rtrt_dest_out = userdata.rtrt_dest_in
+            return 'paused'
+        else:
+            return 'succeeded'
 
 def monitor_commands_cb(ud,msg):
     # ud is a smach.user_data.Remapper instance
@@ -341,9 +349,12 @@ def main():
                                               'cross_dest_in':'user_dest'})
             smach.StateMachine.add('RETREATING', Retreating(),
                                    transitions={'succeeded':'WAITING',
-                                                'preempted':'WAITING'},
+                                                'preempted':'WAITING',
+                                                'paused':'SIGNALWAITING'},
                                    remapping={'rtrt_midcross_in':'is_midcross',
-                                              'rtrt_dest_in':'user_dest'})
+                                              'rtrt_dest_in':'user_dest',
+                                              'rtrt_dest_out':'user_dest',
+                                              'rtrt_midcross_out':'is_midcross'})
                                                 
 
         smach.Concurrence.add('MAIN', sm)
