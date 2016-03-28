@@ -4,7 +4,7 @@ import rospy
 import sys
 import threading
 import random
-from std_msgs.msg import Int8,Empty
+from std_msgs.msg import Int8,Empty,Float32
 
 def tsub_callback(msg):
     global start_trigger
@@ -13,7 +13,8 @@ def tsub_callback(msg):
 def setupPubs():
     pubs = {
         'user_commands': rospy.Publisher('user_commands',Int8,queue_size=10),
-        'crossing_signals': rospy.Publisher('crossing_signals',Int8,queue_size=1)
+        'crossing_signals': rospy.Publisher('crossing_signals',Int8,queue_size=1),
+        'gaze_sensor': rospy.Publisher('gaze_sensor',Float32,queue_size=1)
     }
     return pubs;
 

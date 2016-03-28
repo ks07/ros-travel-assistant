@@ -81,8 +81,10 @@ class SignalWaiting(smach.State):
                              input_keys=['sigwait_dest_in','sigwait_midcross_in'],
                              output_keys=['sigwait_dest_in'])
         self.ready = False
+        self.gaze = False
         self.pub = rospy.Publisher('light_commands', std_msgs.msg.Int8, queue_size=10)
-        self.sub = rospy.Subscriber('crossing_signals', std_msgs.msg.Int8, callback_smach, self)
+        self.sub = rospy.Subscriber('crossing_signals', std_msgs.msg.Int8, self.sub_callback)
+        self.uasub = rospy.Subscriber('gaze_sensor', std_msgs.msg.Float32, self.uasub_callback)
 
         self.prev_dest = 0 # To recall previous destination
 
@@ -106,7 +108,7 @@ class SignalWaiting(smach.State):
                 self.service_preempt()
                 return 'preempted'
 
-            if self.ready:
+            if self.ready and self.gaze:
                 return 'cross'
             else:
                 return 'signalwait'
@@ -118,6 +120,11 @@ class SignalWaiting(smach.State):
             self.ready = True
         else:
             self.ready = False
+
+    def uasub_callback(self, msg):
+        # Receives the gaze tracking information as a certainty percentage
+        # If at least 80% certain, do the crossing
+        self.gaze = msg.data >= 0.8
 
 class BeginCrossing(smach.State):
     """ The state where we tell the base to start the move op. """
