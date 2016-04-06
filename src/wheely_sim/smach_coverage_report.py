@@ -21,6 +21,16 @@ def main(datapath):
     print 'Outcomes Missed: ', total_outcomes - covered_outcomes
     print 'Coverage Achieved: ', float(covered_outcomes) / total_outcomes
 
+    print '\nCoverage Holes:'
+    for state, outcomes in covdata.iteritems():
+        new = True
+        for outcome, covered in outcomes.iteritems():
+            if not covered:
+                if new:
+                    print state
+                    new = False
+                print '  ', outcome
+
 if __name__ == '__main__':
     if len(sys.argv) < 2:
         print 'Usage: smach_coverage_report.py <path>'
