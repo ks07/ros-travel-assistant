@@ -75,6 +75,42 @@ class FunctionalCC(object):
         with open('.fcov', 'w') as covfile:
             pickle.dump(self.coverage, covfile)
 
+        return self.coverage
+
+def report(cov):
+    # Cross product of signal values and current states
+    #self.coverage = {state: {lbl: set() for lbl in SUB_LABELS} for state in struct.children}
+    # cov[state][lbl] = set(0,1,...)
+
+    total_points = 0
+    covered_points = 0
+    
+    for state, labels in cov.iteritems():
+        
+        # Need to filter/bucket possible values to get an achievable coverage metric
+        # User Cmds (buckets for both destinations as well as invalid)
+        uc_has_0 = 0 in labels[UC_LABEL]
+        uc_has_1 = 1 in labels[UC_LABEL]
+        uc_has_inv = bool(labels[UC_LABEL].difference([0,1]))
+
+        total_points += 3
+        covered_points += uc_has_0 + uc_has_1 + uc_has_inv
+
+        # Gaze Sensor (buckets for under and inside, ignore invalid)
+        # could extend to cover boundary conditions here?
+        gz_has_under = any(x < 0.8 for x in labels[GZ_LABEL])
+        gz_has_okay  = any(x >= 0.8 for x in labels[GZ_LABEL])
+
+        total_points += 2
+        covered_points += gz_has_under + gz_has_okay
+
+        # Crossing Signals (only valid values)
+        cs_has_0 = 0 in labels[CS_LABEL]
+        cs_has_1 = 1 in labels[CS_LABEL]
+
+        total_points += 2
+        covered_points += cs_has_0 + cs_has_1
+
 if __name__ == '__main__':
     rospy.init_node('wheely_fcc')
 
