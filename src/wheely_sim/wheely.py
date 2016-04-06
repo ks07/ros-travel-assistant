@@ -10,18 +10,12 @@ import std_msgs.msg
 
 from wheely_sim.msg import CrossRoadAction, CrossRoadGoal
 
-from coverage import Coverage
-
 from itertools import tee, izip
 def pairwise(iterable):
     "s -> (s0,s1), (s1,s2), (s2, s3), ..."
     a, b = tee(iterable)
     next(b, None)
     return izip(a, b)
-
-def callback_smach(data,state):
-    rospy.loginfo('Received: ' + str(data) + ' for ' + type(state).__name__)
-    state.sub_callback(data)
 
 class SubscriberContainer(object):
     """ Holder for subscribers so they can be shared amongst states. """
@@ -47,7 +41,7 @@ class Waiting(smach.State):
                              output_keys=['wait_dest_out','wait_midcross_out'])
         # Any state init here
         self.command = -1
-        self.sub = rospy.Subscriber('user_commands', std_msgs.msg.Int8, callback_smach, self)
+        self.sub = rospy.Subscriber('user_commands', std_msgs.msg.Int8, self.sub_callback)
 
     def execute(self, userdata):
         if rospy.is_shutdown():
@@ -161,6 +155,7 @@ class BeginCrossing(smach.State):
                              output_keys=['begincross_actcli_out','begincross_dest_out'])
 
     def execute(self, userdata):
+        global client
         if rospy.is_shutdown():
             return 'preempted'
         rospy.loginfo('Executing state BEGINCROSSING dest: ' + str(userdata.begincross_dest_in))
@@ -168,16 +163,11 @@ class BeginCrossing(smach.State):
         if self.preempt_requested():
             self.service_preempt()
             return 'preempted'
-        
-        # Try to interface with actionlib manually
-        client = actionlib.SimpleActionClient('cross_road', CrossRoadAction)
-        client.wait_for_server()
 
         goal = CrossRoadGoal()
         goal.crossing_id = userdata.begincross_dest_in
         rospy.loginfo('Asking base to drive to ' + str(goal.crossing_id))
         client.send_goal(goal)
-        userdata.begincross_actcli_out = client
 
         return 'succeeded'
 
@@ -186,13 +176,13 @@ class Crossing(smach.State):
     def __init__(self):
         smach.State.__init__(self,
                              outcomes=['succeeded','preempted','replanned','interrupted'],
-                             input_keys=['cross_actcli_in','cross_dest_in'],
-                             output_keys=['cross_dest_out','cross_actcli_in','cross_midcross_out']) # Need to mark as output so that the object is mutable
+                             input_keys=['cross_dest_in'],
+                             output_keys=['cross_dest_out','cross_midcross_out'])
         self.command = -1
-        self.sub = rospy.Subscriber('user_commands', std_msgs.msg.Int8, callback_smach, self)
+        self.sub = rospy.Subscriber('user_commands', std_msgs.msg.Int8, self.sub_callback)
 
     def execute(self, userdata):
-        global subs
+        global subs,client
         if rospy.is_shutdown():
             return 'preempted'
         rospy.loginfo('Executing state CROSSING')
@@ -200,7 +190,6 @@ class Crossing(smach.State):
         # Clear out any commands we should have already acted on.
         self.command = -1
 
-        client = userdata.cross_actcli_in
         userdata.cross_midcross_out = 0
 
         TIMEOUT = 45.0
@@ -392,8 +381,13 @@ def main():
 
         smach.Concurrence.add('MAIN', sm)
 
+    sis = smach_ros.IntrospectionServer('wheely_intro', sm, '/WHEELY_SM')
+    sis.start()
+
     # Execute smach plan!
     outcome = sm_con.execute()
+
+    sis.stop()
 
 if __name__ == '__main__':
     try:
