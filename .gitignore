@@ -5,3 +5,5 @@ devel/
 covhtml/
 bin/
 bdi_tests/
+.scov_*
+htmlcov/
