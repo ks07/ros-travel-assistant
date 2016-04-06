@@ -152,7 +152,7 @@ class BeginCrossing(smach.State):
         smach.State.__init__(self,
                              outcomes=['succeeded','preempted'],
                              input_keys=['begincross_dest_in'],
-                             output_keys=['begincross_actcli_out','begincross_dest_out'])
+                             output_keys=['begincross_dest_out'])
 
     def execute(self, userdata):
         global client
@@ -358,15 +358,13 @@ def main():
                                    transitions={'succeeded':'CROSSING',
                                                 'preempted':'WAITING'},
                                    remapping={'begincross_dest_in':'user_dest',
-                                              'begincross_actcli_out':'actcli',
                                               'begincross_dest_out':'user_dest'})
             smach.StateMachine.add('CROSSING', Crossing(),
                                    transitions={'succeeded':'WAITING',
                                                 'preempted':'WAITING',
                                                 'replanned':'SIGNALWAITING',
                                                 'interrupted':'RETREATING'},
-                                   remapping={'cross_actcli_in':'actcli',
-                                              'cross_dest_out':'user_dest',
+                                   remapping={'cross_dest_out':'user_dest',
                                               'cross_midcross_out':'is_midcross',
                                               'cross_dest_in':'user_dest'})
             smach.StateMachine.add('RETREATING', Retreating(),
