@@ -87,13 +87,19 @@ class SignalWaiting(smach.State):
         self.pub = rospy.Publisher('light_commands', std_msgs.msg.Int8, queue_size=10)
         self.sub = rospy.Subscriber('crossing_signals', std_msgs.msg.Int8, self.sub_callback)
         self.uasub = rospy.Subscriber('gaze_sensor', std_msgs.msg.Float32, self.uasub_callback)
+        self.ucsub = rospy.Subscriber('user_commands', std_msgs.msg.Int8, self.ucsub_callback)
         self.trigger = threading.Event()
 
         self.prev_dest = 0 # To recall previous destination
+        self.new_dest = -1
 
         self.tm1_pub = rospy.Publisher('test_monitor1', std_msgs.msg.Empty, queue_size=1)
 
     def execute(self, userdata):
+        global subs
+
+        self.new_dest = -1
+
         if rospy.is_shutdown():
             return 'preempted'
         rospy.loginfo('Executing state SIGNALWAITING')
@@ -105,6 +111,9 @@ class SignalWaiting(smach.State):
             
             # Timeout after 30 seconds
             success = self.trigger.wait(25.0)
+
+            if self.new_dest != -1:
+                userdata.sigwait_dest_in = self.new_dest
 
             if self.preempt_requested():
                 self.service_preempt()
@@ -138,6 +147,10 @@ class SignalWaiting(smach.State):
             self.trigger.set()
         else:
             self.trigger.clear()
+
+    def ucsub_callback(self, msg):
+        # Allows changing of dest whilst waiting to cross.
+        self.new_dest = msg.data
 
 class BeginCrossing(smach.State):
     """ The state where we tell the base to start the move op. """
