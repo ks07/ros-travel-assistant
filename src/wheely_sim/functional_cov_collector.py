@@ -4,6 +4,7 @@ import rospy
 from smach_msgs.msg import SmachContainerStatus, SmachContainerStructure
 import std_msgs.msg
 import pickle
+import sys
 
 UC_LABEL = 'commands'
 GZ_LABEL = 'gaze'
@@ -85,6 +86,9 @@ def report(cov):
     total_points = 0
     covered_points = 0
     
+    # Headers
+    print '\t'.join(['Active State:','UC0','UC1','UCX','GZ<','GZ>=','CS0','CS1'])
+
     for state, labels in cov.iteritems():
         
         # Need to filter/bucket possible values to get an achievable coverage metric
@@ -111,8 +115,19 @@ def report(cov):
         total_points += 2
         covered_points += cs_has_0 + cs_has_1
 
-if __name__ == '__main__':
-    rospy.init_node('wheely_fcc')
+        print '\t'.join([state] + [str(int(c)) for c in [uc_has_0,uc_has_1,uc_has_inv,gz_has_under,gz_has_okay,cs_has_0,cs_has_1]])
 
-    fcc = FunctionalCC()
-    fcc.run()
+    print 'Covered: ', covered_points
+    print 'Total: ', total_points
+    print 'Percent Coverage: ', float(covered_points) / float(total_points)
+
+if __name__ == '__main__':
+    if len(sys.argv) > 2 and sys.argv[1] == 'report':
+        with open(sys.argv[2]) as covfile:
+            cov = pickle.load(covfile)
+            report(cov)
+    else:
+        rospy.init_node('wheely_fcc')
+
+        fcc = FunctionalCC()
+        fcc.run()
