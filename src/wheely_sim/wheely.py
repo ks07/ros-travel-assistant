@@ -73,7 +73,7 @@ class SignalWaiting(smach.State):
     """ The state where wheely is waiting for the lights on the crossing to turn green. """
     def __init__(self):
         smach.State.__init__(self,
-                             outcomes=['signalwait','timeout','cross','preempted'],
+                             outcomes=['timeout','cross','preempted'],
                              input_keys=['sigwait_dest_in','sigwait_midcross_in'],
                              output_keys=['sigwait_dest_in'])
         self.ready = False
