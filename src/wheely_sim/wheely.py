@@ -348,8 +348,7 @@ def main():
                                    remapping={'wait_dest_out':'user_dest',
                                               'wait_midcross_out':'is_midcross'})
             smach.StateMachine.add('SIGNALWAITING', SignalWaiting(),
-                                   transitions={'signalwait':'SIGNALWAITING',
-                                                'cross':'BEGINCROSSING',
+                                   transitions={'cross':'BEGINCROSSING',
                                                 'timeout':'WAITING',
                                                 'preempted':'WAITING'},
                                    remapping={'sigwait_dest_in':'user_dest',
