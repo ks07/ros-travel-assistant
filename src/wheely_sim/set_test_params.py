@@ -9,6 +9,7 @@ light_response_time = [0,10000]
 light_crossing_time = [5000,15000]
 gaze_wait_time = [0,500]
 gaze_wait_time_2 = [0,500]
+test_end_time = [10000,10000]
 
 
 # Set the parameters
@@ -24,3 +25,4 @@ rospy.set_param('/bdiparam/light_response_time',light_response_time)
 rospy.set_param('/bdiparam/light_crossing_time',light_crossing_time)
 rospy.set_param('/bdiparam/gazewait',gaze_wait_time)
 rospy.set_param('/bdiparam/gazewait2',gaze_wait_time_2)
+rospy.set_param('/bdiparam/testend',test_end_time)

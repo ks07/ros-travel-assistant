@@ -44,7 +44,7 @@ class Waiting(smach.State):
         self.sub = rospy.Subscriber('user_commands', std_msgs.msg.Int8, self.sub_callback)
 
     def execute(self, userdata):
-        if rospy.is_shutdown():
+        if rospy.is_shutdown(): # pragma: no cover
             return 'preempted'
         # State execution here
         rospy.loginfo('Executing state WAITING')
@@ -94,7 +94,7 @@ class SignalWaiting(smach.State):
 
         self.new_dest = -1
 
-        if rospy.is_shutdown():
+        if rospy.is_shutdown(): # pragma: no cover
             return 'preempted'
         rospy.loginfo('Executing state SIGNALWAITING')
 
@@ -156,7 +156,7 @@ class BeginCrossing(smach.State):
 
     def execute(self, userdata):
         global client
-        if rospy.is_shutdown():
+        if rospy.is_shutdown(): # pragma: no cover
             return 'preempted'
         rospy.loginfo('Executing state BEGINCROSSING dest: ' + str(userdata.begincross_dest_in))
 
@@ -183,7 +183,7 @@ class Crossing(smach.State):
 
     def execute(self, userdata):
         global subs,client
-        if rospy.is_shutdown():
+        if rospy.is_shutdown(): # pragma: no cover
             return 'preempted'
         rospy.loginfo('Executing state CROSSING')
 
@@ -242,7 +242,7 @@ class Retreating(smach.State):
 
     def execute(self, userdata):
         global subs,client
-        if rospy.is_shutdown():
+        if rospy.is_shutdown(): # pragma: no cover
             return 'preempted'
         rospy.loginfo('Executing state RETREATING')
 
@@ -390,8 +390,8 @@ def main():
 if __name__ == '__main__':
     try:
         main()
-    except smach.exceptions.InvalidUserCodeError as ex:
+    except smach.exceptions.InvalidUserCodeError as ex: # pragma: no cover
         if rospy.is_shutdown():
             print 'Shutting down'
-        else: # pragma: no cover
+        else:
             raise

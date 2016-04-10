@@ -36,10 +36,10 @@ def main(bdi_test_file, trigger):
 
     pubs = setupPubs()
     sub_rcvd = setupSubs()
-    rospy.sleep(0.5) # Need to sleep to allow connections to establish
 
     if trigger:
         tpub = rospy.Publisher('test_trigger',Empty,queue_size=1)
+        rospy.sleep(0.5) # Need to sleep to allow connections to establish
         block = raw_input('Hit enter when all test drivers ready...')
         tpub.publish()
     else:
