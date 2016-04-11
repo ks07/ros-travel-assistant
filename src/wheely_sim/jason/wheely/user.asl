@@ -13,6 +13,7 @@ location(0).
 	: true
 	<- for ( .member(D,[1,0,1,0,1,0,1]) ) {
 		!location(D);
+		wheely.save("paramdelay,newcmdwait")
 	};
 	wheely.save("paramdelay,testend");
 	wheely.save("pub,user_commands,127").

@@ -1,10 +1,11 @@
 *~
 build/
 devel/
-.coverage
+.coverage*
 covhtml/
 bin/
 bdi_tests/
 .scov_*
 htmlcov/
 .fcov*
+.monitor*
