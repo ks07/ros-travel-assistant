@@ -5,8 +5,19 @@ import smach
 import smach_ros
 import threading
 import itertools
+import os
 from std_msgs.msg import Int8
 from nav_msgs.msg import Odometry
+
+testend = False
+
+def log(msg,term = True):
+    global f
+    f.write(str(msg))
+    if term:
+        f.write('\n')
+    else:
+        f.write(',')
 
 # From itertools recipes
 def grouper(iterable, n, fillvalue=None):
@@ -40,11 +51,12 @@ def nearest_refuges(position):
 class InterruptTrigger(smach.State):
     def __init__(self):
         smach.State.__init__(self,
-                             outcomes=['triggered','inactive'],
+                             outcomes=['triggered','inactive','shutdown'],
                              output_keys=['it_location_out'])
         self.trigger = threading.Event()
         self.light_sub = rospy.Subscriber('crossing_signals', Int8, self.light_cb)
         self.odom_sub = rospy.Subscriber('base_pose_ground_truth', Odometry, self.odom_cb)
+        self.ucmd_sub = rospy.Subscriber('user_commands', Int8, self.ucmd_cb)
         self.onroad = False
         self.red = True
         self.location = None
@@ -65,10 +77,19 @@ class InterruptTrigger(smach.State):
         else:
             self.trigger.clear()
 
+    def ucmd_cb(self, msg):
+        global testend
+        if msg.data == 127:
+            testend = True
+            self.trigger.set()
+
     def execute(self, userdata):
         rospy.loginfo('Waiting for red lights whilst crossing.')
         triggered = self.trigger.wait(10000)
-        if triggered:
+        if testend:
+            return 'shutdown'
+        elif triggered:
+            log(self.location.y,False)
             userdata.it_location_out = self.location
             return 'triggered'
         else:
@@ -78,10 +99,11 @@ class InterruptTrigger(smach.State):
 class RefugeChecker(smach.State):
     def __init__(self):
         smach.State.__init__(self,
-                             outcomes=['inactive','passed','failed'],
+                             outcomes=['inactive','passed','failed','shutdown'],
                              input_keys=['rc_location_in'])
         self.light_sub = rospy.Subscriber('crossing_signals', Int8, self.light_cb)
         self.odom_sub = rospy.Subscriber('base_pose_ground_truth', Odometry, self.odom_cb)
+        self.ucmd_sub = rospy.Subscriber('user_commands', Int8, self.ucmd_cb)
         self.change = threading.Event()
         self.green = False
         self.refuged = False
@@ -102,8 +124,16 @@ class RefugeChecker(smach.State):
             else:
                 self.refuged = True
                 self.change.set()
+
+    def ucmd_cb(self, msg):
+        global testend
+        if msg.data == 127:
+            testend = True
+            self.change.set()
         
     def execute(self, userdata):
+        if testend:
+            return 'shutdown'
         self.change.clear()
         self.refuged = False
 
@@ -127,13 +157,17 @@ class RefugeChecker(smach.State):
 
         self.change.wait()
 
-        if self.green:
+        if testend:
+            return 'shutdown'
+        elif self.green:
             rospy.loginfo('RESET')
             return 'inactive'
         elif self.refuged:
+            log(1)
             rospy.loginfo('PASSED')
             return 'passed'
         else:
+            log(0)
             rospy.loginfo('FAIL')
             return 'failed'
 
@@ -146,18 +180,26 @@ def main():
    	with sm:
 		smach.StateMachine.add('INTERRUPTTRIGGER', InterruptTrigger(), 
                                        transitions={'triggered':'REFUGECHECKER',
-                                                    'inactive':'INTERRUPTTRIGGER'},
+                                                    'inactive':'INTERRUPTTRIGGER',
+                                                    'shutdown':'done'},
                                        remapping={'it_location_out':'intloc'})
 		smach.StateMachine.add('REFUGECHECKER', RefugeChecker(),
                                        transitions={'inactive':'INTERRUPTTRIGGER',
                                                     'passed':'INTERRUPTTRIGGER',
-                                                    'failed':'INTERRUPTTRIGGER'},
+                                                    'failed':'INTERRUPTTRIGGER',
+                                                    'shutdown':'done'},
                                        remapping={'rc_location_in':'intloc'})
 
 	# Execute SMACH plan
     	outcome = sm.execute()
 
 if __name__ == '__main__':
+    if 'MONITORLOG' in os.environ:
+        logfile = os.environ['MONITORLOG']
+    else:
+        logfile = '.monitor3'
+
+    with open(logfile, 'w') as f:
 	try:
 		main()
 	except	rospy.ROSInterruptException:

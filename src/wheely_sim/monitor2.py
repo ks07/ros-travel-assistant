@@ -5,8 +5,19 @@ import smach
 import smach_ros
 import threading
 import itertools
+import os
 from std_msgs.msg import Int8
 from nav_msgs.msg import Odometry
+
+testend = False
+
+def log(msg,term = True):
+    global f
+    f.write(str(msg))
+    if term:
+        f.write('\n')
+    else:
+        f.write(',')
 
 # From itertools recipes
 def grouper(iterable, n, fillvalue=None):
@@ -26,12 +37,13 @@ def within_road(position):
 class TrafficTrigger(smach.State):
     def __init__(self):
         smach.State.__init__(self,
-                             outcomes=['triggered','inactive','triggerwait'])
+                             outcomes=['triggered','inactive','triggerwait','shutdown'])
         self.trigger = threading.Event()
         # Assume lights start red, so should trigger immediately
         self.trigger.set()
         self.light_sub = rospy.Subscriber('crossing_signals', Int8, self.light_cb)
         self.odom_sub = rospy.Subscriber('base_pose_ground_truth', Odometry, self.odom_cb)
+        self.ucmd_sub = rospy.Subscriber('user_commands', Int8, self.ucmd_cb)
         self.onroad = False
 
     def light_cb(self, msg):
@@ -44,14 +56,24 @@ class TrafficTrigger(smach.State):
     def odom_cb(self, msg):
         self.onroad = within_road(msg.pose.pose.position)
 
+    def ucmd_cb(self, msg):
+        global testend
+        if msg.data == 127:
+            testend = True
+            self.trigger.set()
+
     def execute(self, userdata):
         rospy.loginfo('Waiting for red lights.')
         triggered = self.trigger.wait(10000)
+        if testend:
+            return 'shutdown'
+
         if triggered:
             rospy.loginfo('Lights became red.')
             if self.onroad:
                 return 'triggerwait'
             else:
+                log('t',False)
                 return 'triggered'
         else:
             # Add a timeout so that the monitor can be shut off.
@@ -60,9 +82,10 @@ class TrafficTrigger(smach.State):
 class LocationChecker(smach.State):
     def __init__(self):
         smach.State.__init__(self,
-                             outcomes=['inactive','failed'])
+                             outcomes=['inactive','failed','shutdown'])
         self.light_sub = rospy.Subscriber('crossing_signals', Int8, self.light_cb)
         self.odom_sub = rospy.Subscriber('base_pose_ground_truth', Odometry, self.odom_cb)
+        self.ucmd_sub = rospy.Subscriber('user_commands', Int8, self.ucmd_cb)
         self.change = threading.Event()
         self.reset = False
         self.onroad = False
@@ -79,17 +102,27 @@ class LocationChecker(smach.State):
         self.onroad = within_road(msg.pose.pose.position)
         if self.onroad:
             self.change.set()
+
+    def ucmd_cb(self, msg):
+        global testend
+        if msg.data == 127:
+            testend = True
+            self.change.set()
         
     def execute(self, userdata):
         self.change.clear() # Need to reset the event
         rospy.loginfo('Crossing red, watching for movement.')
         self.change.wait()
 
-        if self.reset:
+        if testend:
+            return 'shutdown'
+        elif self.reset:
             rospy.loginfo('RESET')
+            log(1)
             return 'inactive'
         elif self.onroad:
             rospy.loginfo('FAIL')
+            log(0)
             return 'failed'
         else:
             rospy.logerr('No condition set when unblocked!')
@@ -98,9 +131,10 @@ class LocationChecker(smach.State):
 class RoadWait(smach.State):
     def __init__(self):
         smach.State.__init__(self,
-                             outcomes=['inactive','cleared'])
+                             outcomes=['inactive','cleared','shutdown'])
         self.light_sub = rospy.Subscriber('crossing_signals', Int8, self.light_cb)
         self.odom_sub = rospy.Subscriber('base_pose_ground_truth', Odometry, self.odom_cb)
+        self.ucmd_sub = rospy.Subscriber('user_commands', Int8, self.ucmd_cb)
         self.change = threading.Event()
         self.reset = False
         self.onroad = False
@@ -117,17 +151,26 @@ class RoadWait(smach.State):
         self.onroad = within_road(msg.pose.pose.position)
         if not self.onroad:
             self.change.set()
+
+    def ucmd_cb(self, msg):
+        global testend
+        if msg.data == 127:
+            testend = True
+            self.change.set()
         
     def execute(self, userdata):
         self.change.clear() # Need to reset the event
         rospy.loginfo('Waiting until road cleared.')
         self.change.wait()
 
-        if self.reset:
+        if testend:
+            return 'shutdown'
+        elif self.reset:
             rospy.loginfo('RESET')
             return 'inactive'
         elif not self.onroad:
             rospy.loginfo('CLEARED')
+            log('w',False)
             return 'cleared'
         else:
             rospy.logerr('No condition set when unblocked!')
@@ -142,19 +185,28 @@ def main():
 		smach.StateMachine.add('TRAFFICTRIGGER', TrafficTrigger(), 
                                        transitions={'triggered':'LOCATIONCHECKER',
                                                     'triggerwait':'ROADWAIT',
-                                                    'inactive':'TRAFFICTRIGGER'})
+                                                    'inactive':'TRAFFICTRIGGER',
+                                                    'shutdown':'done'})
 		smach.StateMachine.add('LOCATIONCHECKER', LocationChecker(),
                                        transitions={'inactive':'TRAFFICTRIGGER',
-                                                    'failed':'ROADWAIT'})
+                                                    'failed':'ROADWAIT',
+                                                    'shutdown':'done'})
                 smach.StateMachine.add('ROADWAIT', RoadWait(),
                                        transitions={'cleared':'LOCATIONCHECKER',
-                                                    'inactive':'TRAFFICTRIGGER'})
+                                                    'inactive':'TRAFFICTRIGGER',
+                                                    'shutdown':'done'})
 
 	# Execute SMACH plan
     	outcome = sm.execute()
 
 if __name__ == '__main__':
-	try:
-		main()
-	except	rospy.ROSInterruptException:
-		pass
+    if 'MONITORLOG' in os.environ:
+        logfile = os.environ['MONITORLOG']
+    else:
+        logfile = '.monitor2'
+
+    with open(logfile, 'w') as f:
+        try:
+            main()
+        except	rospy.ROSInterruptException:
+            pass

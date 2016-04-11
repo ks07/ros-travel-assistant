@@ -14,6 +14,7 @@ roscd wheely_sim
 
 COUNTER=1
 while [ $COUNTER -lt 5 ]; do
+        echo "Starting run #$COUNTER"
 	sleep 7
 	rm -f /tmp/rospids
 	# Need to set parameters
@@ -26,13 +27,13 @@ while [ $COUNTER -lt 5 ]; do
 	(COVERAGE_FILE=.coverage_crs_$COUNTER rosrun wheely_sim CrossRoadServer.py & echo $! >> /tmp/rospids) &
 	(COVERAGE_FILE=.coverage_wly_$COUNTER rosrun wheely_sim wheely.py; ) &
 	# Run the assertion monitors
-	(rosrun wheely_sim monitor1.py & echo $! >> /tmp/rospids) &
-	(rosrun wheely_sim monitor2.py & echo $! >> /tmp/rospids) &
-	(rosrun wheely_sim monitor3.py & echo $! >> /tmp/rospids) &
-	(rosrun wheely_sim monitor5.py & echo $! >> /tmp/rospids) &
+	(MONITORLOG=.monitor1_$COUNTER rosrun wheely_sim monitor1.py & echo $! >> /tmp/rospids) &
+	(MONITORLOG=.monitor2_$COUNTER rosrun wheely_sim monitor2.py & echo $! >> /tmp/rospids) &
+	(MONITORLOG=.monitor3_$COUNTER rosrun wheely_sim monitor3.py & echo $! >> /tmp/rospids) &
+	(MONITORLOG=.monitor5_$COUNTER rosrun wheely_sim monitor5.py & echo $! >> /tmp/rospids) &
 	# Run the test drivers
 	(rosrun wheely_sim bdi_interface.py jason/wheely/bdi_tests/user.txt & echo $! >> /tmp/rospids) &
-	(sleep 10 && echo '' | rosrun wheely_sim bdi_interface.py jason/wheely/bdi_tests/lights.txt -t & echo $! >> /tmp/rospids)
+	(sleep 5 && echo '' | rosrun wheely_sim bdi_interface.py jason/wheely/bdi_tests/lights.txt -t & echo $! >> /tmp/rospids)
 
 	# Need to wait for the tests to be over, can (ab)use rostopic
 	rostopic echo -n 1 --filter='m.data ==127' /user_commands
