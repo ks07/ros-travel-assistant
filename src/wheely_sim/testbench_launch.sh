@@ -25,8 +25,8 @@ while [ $COUNTER -lt 5 ]; do
 	(rosrun wheely_sim functional_cov_collector.py & echo $! >> /tmp/rospids; mv .fcov .fcov_$COUNTER) &
 	# Run robot code
 	(COVERAGE_FILE=.coverage_crs_$COUNTER rosrun wheely_sim CrossRoadServer.py & echo $! >> /tmp/rospids) &
-	(COVERAGE_FILE=.coverage_wly_$COUNTER rosrun wheely_sim wheely.py; ) &
-	# Run the assertion monitors
+	(SSCOV_FILE=.scov_$COUNTER COVERAGE_FILE=.coverage_wly_$COUNTER rosrun wheely_sim wheely.py & echo $! >> /tmp/rospids) &
+	# Run the assertion monitors TODO: SUPPRESS .scov CREATION!
 	(MONITORLOG=.monitor1_$COUNTER rosrun wheely_sim monitor1.py & echo $! >> /tmp/rospids) &
 	(MONITORLOG=.monitor2_$COUNTER rosrun wheely_sim monitor2.py & echo $! >> /tmp/rospids) &
 	(MONITORLOG=.monitor3_$COUNTER rosrun wheely_sim monitor3.py & echo $! >> /tmp/rospids) &

@@ -3,6 +3,7 @@ import threading
 import traceback
 from contextlib import contextmanager
 
+import os
 import pickle
 
 import smach
@@ -380,7 +381,18 @@ class StateMachine(smach.container.Container):
             self._is_running = False
 
         # Save the coverage information
-        with open('.scov_' + str(self.cov_id), 'w') as covfile:
+        if 'SSCOV_FILE' in os.environ:
+            covbasename = os.environ['SSCOV_FILE']
+        else:
+            covbasename = '.scov'
+
+        # Determine if suffixes are required
+        if StateMachine.cov_instance_counter == 1:
+            covsuffix = ''
+        else:
+            covsuffix = '_' + str(self.cov_id)
+
+        with open(covbasename + covsuffix, 'w') as covfile:
             pickle.dump(self.cov_states, covfile)
 
         return container_outcome

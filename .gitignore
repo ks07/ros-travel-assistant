@@ -9,3 +9,5 @@ bdi_tests/
 htmlcov/
 .fcov*
 .monitor*
+.scov
+*.pyc
