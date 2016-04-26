@@ -29,7 +29,10 @@ class CrossRoadServer:
             1.0:self.MOVE_STEPS,
             0.5:self.MOVE_STEPS / 2
         }
-        return goal2loc[id]
+        if id in goal2loc:
+            return goal2loc[id]
+        else:
+            return -1
         # if id:
         #     return self.MOVE_STEPS - 1
         # else:
@@ -37,7 +40,7 @@ class CrossRoadServer:
 
     def execute(self,goal):
         gloc = self.goalid_to_location(goal.crossing_id)
-        if gloc == self.location:
+        if gloc == self.location or gloc == -1:
             rospy.loginfo('Cross road not necessary.')
             res = CrossRoadResult()
             res.did_we_make_it = True

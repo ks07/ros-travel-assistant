@@ -67,7 +67,8 @@ def main(bdi_test_file, trigger):
                 # Publish a2 by a1
                 print 'Publishing ',args[2],' to ',args[1]
                 pset = pubs[args[1]]
-                pset[0].publish(data = pset[1](args[2]))
+                rdata = 127 if args[2] == '127' else get_param(args[1])
+                pset[0].publish(data = pset[1](rdata))
                 rospy.sleep(0.5)
             elif args[0] == 'waitfor':
                 # Wait until we see a2 from a1

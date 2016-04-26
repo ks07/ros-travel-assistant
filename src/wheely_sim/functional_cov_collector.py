@@ -110,6 +110,9 @@ def report(cov):
     print '\t'.join(['Active State:','UC0','UC1','UCX','GZ<','GZ>=','CS0','CS1'])
 
     for state, labels in cov.iteritems():
+        # Group begincrossing and crossing
+        if state == 'BEGINCROSSING':
+            continue
         
         # Need to filter/bucket possible values to get an achievable coverage metric
         # User Cmds (buckets for both destinations as well as invalid)

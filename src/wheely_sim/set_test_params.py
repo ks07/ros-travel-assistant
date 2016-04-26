@@ -28,3 +28,7 @@ rospy.set_param('/bdiparam/gazewait',gaze_wait_time)
 rospy.set_param('/bdiparam/gazewait2',gaze_wait_time_2)
 rospy.set_param('/bdiparam/testend',test_end_time)
 rospy.set_param('/bdiparam/newcmdwait',new_cmd_wait_time)
+
+rospy.set_param('/bdiparam/user_commands',[0,2.5])
+rospy.set_param('/bdiparam/crossing_signals',[0,2])
+rospy.set_param('/bdiparam/gaze_sensor',[0.6,1.0])
