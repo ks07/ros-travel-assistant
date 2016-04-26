@@ -51,7 +51,7 @@ class TrafficTrigger(smach.State):
 
     def light_cb(self, msg):
         self.red = msg.data == 0
-        if self.red and self.nogaze:
+        if self.red or self.nogaze:
             # Crossing is red, we should now move to checking for movement
             self.trigger.set()
         else:
@@ -68,7 +68,7 @@ class TrafficTrigger(smach.State):
 
     def gaze_cb(self, msg):
         self.nogaze = msg.data < 0.8
-        if self.nogaze and self.red:
+        if self.nogaze or self.red:
             self.trigger.set()
         else:
             self.trigger.clear()
@@ -97,17 +97,21 @@ class LocationChecker(smach.State):
         self.light_sub = rospy.Subscriber('crossing_signals', Int8, self.light_cb)
         self.odom_sub = rospy.Subscriber('base_pose_ground_truth', Odometry, self.odom_cb)
         self.ucmd_sub = rospy.Subscriber('user_commands', Int8, self.ucmd_cb)
+        self.gaze_sub = rospy.Subscriber('gaze_sensor', Float32, self.gaze_cb)
         self.change = threading.Event()
+        self.gaze = False
+        self.green = False
         self.reset = False
         self.onroad = False
     
     def light_cb(self, msg):
-        if msg.data == 1:
-            # Crossing has gone green, reset the monitor
+        self.green = msg.data == 1
+        if self.green and self.gaze:
+            # Crossing has gone green and gaze back, reset the monitor
             self.reset = True
             self.change.set()
         else:
-            self.reset = False
+            self.change.clear()
     
     def odom_cb(self, msg):
         self.onroad = within_road(msg.pose.pose.position)
@@ -119,6 +123,15 @@ class LocationChecker(smach.State):
         if msg.data == 127:
             testend = True
             self.change.set()
+
+    def gaze_cb(self, msg):
+        self.gaze = msg.data >= 0.8
+        if self.gaze and self.green:
+            # Crossing has gone green and gaze back, reset the monitor
+            self.reset = True
+            self.change.set()
+        else:
+            self.change.clear()
         
     def execute(self, userdata):
         self.change.clear() # Need to reset the event
