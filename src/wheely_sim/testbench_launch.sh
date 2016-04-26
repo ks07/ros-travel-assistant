@@ -12,7 +12,7 @@ roscd wheely_sim
 (roscore & echo $! >> /tmp/mainpids) &
 # Should run stage here but CrossRoadServer needs improvement
 
-COUNTER=1
+COUNTER=0
 while [ $COUNTER -lt 5 ]; do
         echo "Starting run #$COUNTER"
 	sleep 7
