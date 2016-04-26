@@ -78,6 +78,19 @@ class FunctionalCC(object):
 
         return self.coverage
 
+def combine_coverage(datapaths):
+    records = []
+    for datapath in datapaths:
+        with open(datapath, 'r') as datafile:
+            records.append(pickle.load(datafile))
+
+    dest = records[0]
+    for covdata in records[1:]:
+        for state, labels in covdata.iteritems():
+            for label, msgset in labels.iteritems():
+                dest[state][label] |= msgset
+    return dest
+
 def report(cov):
     # Cross product of signal values and current states
     #self.coverage = {state: {lbl: set() for lbl in SUB_LABELS} for state in struct.children}
@@ -123,9 +136,8 @@ def report(cov):
 
 if __name__ == '__main__':
     if len(sys.argv) > 2 and sys.argv[1] == 'report':
-        with open(sys.argv[2]) as covfile:
-            cov = pickle.load(covfile)
-            report(cov)
+        cov = combine_coverage(sys.argv[2:])
+        report(cov)
     else:
         rospy.init_node('wheely_fcc')
 
