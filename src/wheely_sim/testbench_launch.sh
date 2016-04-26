@@ -22,7 +22,7 @@ while [ $COUNTER -lt 5 ]; do
 	# Run simulator
 	(rosrun stage_ros stageros road-crossing-island.world & echo $! >> /tmp/rospids) &
 	# Run functional coverage collector
-	(rosrun wheely_sim functional_cov_collector.py & echo $! >> /tmp/rospids; mv .fcov .fcov_$COUNTER) &
+	(FCOV_FILE=.fcov_$COUNTER rosrun wheely_sim functional_cov_collector.py & echo $! >> /tmp/rospids) &
 	# Run robot code
 	(COVERAGE_FILE=.coverage_crs_$COUNTER rosrun wheely_sim CrossRoadServer.py & echo $! >> /tmp/rospids) &
 	(SSCOV_FILE=.scov_$COUNTER COVERAGE_FILE=.coverage_wly_$COUNTER rosrun wheely_sim wheely.py & echo $! >> /tmp/rospids) &

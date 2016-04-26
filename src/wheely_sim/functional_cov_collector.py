@@ -73,7 +73,13 @@ class FunctionalCC(object):
         print self.coverage
 
         # Save the coverage information
-        with open('.fcov', 'w') as covfile:
+        if 'FCOV_FILE' in os.environ:
+            covname = os.environ['FCOV_FILE']
+        else:
+            covname = '.fcov'
+
+        # Save the coverage information
+        with open(covname, 'w') as covfile:
             pickle.dump(self.coverage, covfile)
 
         return self.coverage
