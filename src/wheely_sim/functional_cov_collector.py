@@ -5,6 +5,7 @@ from smach_msgs.msg import SmachContainerStatus, SmachContainerStructure
 import std_msgs.msg
 import pickle
 import sys
+import os
 
 UC_LABEL = 'commands'
 GZ_LABEL = 'gaze'
