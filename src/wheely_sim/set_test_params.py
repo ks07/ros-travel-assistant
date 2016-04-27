@@ -1,19 +1,23 @@
 #!/usr/bin/env python
 
 import rospy
+import random
 rospy.init_node('set_test_params')
 
 # Configuration
-enable_island = True
-light_response_time = [0,10000]
-light_crossing_time = [5000,15000]
-gaze_wait_time      = [0,500]
-gaze_wait_time_2    = [0,500]
+if random.getrandbits(1):
+    enable_island = True
+else:
+    enable_island = False
+light_response_time = [0,100]
+light_crossing_time = [100,5500]
+gaze_wait_time      = [0,50]
+gaze_wait_time_2    = [0,50]
 test_end_time       = [10000,10000]
-new_cmd_wait_time   = [0,10000]
+new_cmd_wait_time   = [0,4000]
 user_commands       = [0,2.5]
 crossing_signals    = [0,2]
-gaze_sensor         = [0.6,1.0]
+gaze_sensor         = [0.7,1.0]
 
 
 # Set the parameters
