@@ -36,7 +36,7 @@ def t_2():
     # No gaze
     upub.publish(1)
     cpub.publish(1)
-    gpub.publish(0.0)
+    gpub.publish(0.2)
 
 def t_3():
     # No crossing
@@ -235,7 +235,7 @@ def t_21():
     upub.publish(1)
     rospy.sleep(0.5)
     cpub.publish(1)
-    upub.publish(5)
+    upub.publish(2)
     rospy.sleep(0.5)
     gpub.publish(1.0)
 
