@@ -2,10 +2,15 @@
 
 import rospy
 import random
+import sys
 rospy.init_node('set_test_params')
 
 # Configuration
-if random.getrandbits(1):
+if len(sys.argv) > 1 and sys.argv[1] == 'y':
+    enable_island = True
+elif len(sys.argv) > 1 and sys.argv[1] == 'n':
+    enable_island = False
+elif random.getrandbits(1):
     enable_island = True
 else:
     enable_island = False

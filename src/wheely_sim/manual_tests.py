@@ -21,8 +21,9 @@ def runtest(testno):
     return testfunc()
 
 def t_0():
-    # Normal operation
+    # Normal interaction
     upub.publish(1)
+    rospy.sleep(1)
     cpub.publish(1)
     gpub.publish(1.0)
 
@@ -244,6 +245,16 @@ def t_22():
     t_0()
     rospy.sleep(1.0)
     upub.publish(2)
+
+def t_23():
+    # Signal wait timeout
+    upub.publish(1)
+    cpub.publish(0)
+    gpub.publish(0.5)
+    rospy.sleep(30)
+    upub.publish(1)
+    cpub.publish(1)
+    gpub.publish(1.0)
 
 if len(sys.argv) < 2:
     print max(int(t[2:]) for t in globals() if t.startswith('t_'))

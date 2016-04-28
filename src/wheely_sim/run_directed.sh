@@ -15,13 +15,15 @@ roscd wheely_sim
 # Get number of tests
 TESTCNT=$(rosrun wheely_sim manual_tests.py)
 
+ISLAND_ON='n'
+
 COUNTER=0
 while [ $COUNTER -le $TESTCNT ]; do
         echo "Starting run #$COUNTER"
 	sleep 7
 	rm -f /tmp/rospids
 	# Need to set parameters
-	rosrun wheely_sim set_test_params.py
+	rosrun wheely_sim set_test_params.py "$ISLAND_ON"
 	# Run simulator
 	(rosrun stage_ros stageros road-crossing-island.world & echo $! >> /tmp/rospids) &
 	# Run functional coverage collector
