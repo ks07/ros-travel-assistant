@@ -78,7 +78,7 @@ def t_7():
 def t_8():
     # Interrupt cross, island, continue
     t_0()
-    rospy.sleep(3)
+    rospy.sleep(2)
     cpub.publish(0)
     rospy.sleep(1)
     cpub.publish(1)
@@ -86,7 +86,7 @@ def t_8():
 def t_9():
     # Interrupt cross, island, new command, cont
     t_0()
-    rospy.sleep(3)
+    rospy.sleep(2)
     cpub.publish(0)
     upub.publish(0)
     rospy.sleep(1)
@@ -95,7 +95,7 @@ def t_9():
 def t_10():
     # Interrupt cross, island, repeat command
     t_0()
-    rospy.sleep(3)
+    rospy.sleep(2)
     cpub.publish(0)
     upub.publish(1)
     rospy.sleep(1)
@@ -104,7 +104,7 @@ def t_10():
 def t_11():
     # Interrupt cross, island, no gaze
     t_0()
-    rospy.sleep(3)
+    rospy.sleep(2)
     cpub.publish(0)
     rospy.sleep(0.5)
     gpub.publish(0.3)
@@ -116,10 +116,15 @@ def t_12():
     t_0()
     rospy.sleep(1.5)
     cpub.publish(0)
+    rospy.sleep(0.2)
+    upub.publish(1)
+    rospy.sleep(0.1)
+    upub.publish(0)
+    rospy.sleep(0.1)
+    upub.publish(2)
     rospy.sleep(0.1)
     upub.publish(1)
-    upub.publish(0)
-    upub.publish(1)
+    rospy.sleep(0.1)
     upub.publish(0)
 
 def t_13():
@@ -140,6 +145,8 @@ def t_14():
 
 def gazeokpubloop():
     rate = rospy.Rate(100) # Hz
+    for i in range(1000): # Need to be very quick to hit begincrossing
+        gpub.publish(1.0)
     while not rospy.is_shutdown() and not eshutdown.is_set():
         gpub.publish(1.0)
         rate.sleep()
@@ -173,21 +180,70 @@ def t_16():
     rospy.sleep(1)
     cpub.publish(0)
 
-def sigpubloop():
+def sigredpubloop():
     rate = rospy.Rate(1000) # Hz
     while not rospy.is_shutdown() and not eshutdown.is_set():
         cpub.publish(0)
         rate.sleep()
 
 def t_17():
-    # Flood with lots of gaze okay commands whilst crossing
-    gthread = threading.Thread(target = sigpubloop)
+    # Flood with lots of crossing red commands whilst crossing
+    gthread = threading.Thread(target = sigredpubloop)
     gthread.start()
     upub.publish(1)
     rospy.sleep(0.5)
     cpub.publish(1)
     rospy.sleep(4)
     cpub.publish(0)
+
+def siggreenpubloop():
+    rate = rospy.Rate(100) # Hz
+    for i in range(1000): # Need to be very quick to hit begincrossing
+        cpub.publish(1)
+    while not rospy.is_shutdown() and not eshutdown.is_set():
+        cpub.publish(1)
+        rate.sleep()
+
+def t_18():
+    # Flood with lots of crossing green commands whilst crossing
+    gthread = threading.Thread(target = siggreenpubloop)
+    gthread.start()
+    upub.publish(1)
+    rospy.sleep(0.5)
+    gpub.publish(1.0)
+
+def t_19():
+    # Repeat user command whilst waiting for confirmation
+    upub.publish(1)
+    rospy.sleep(0.5)
+    cpub.publish(1)
+    upub.publish(1)
+    rospy.sleep(0.5)
+    gpub.publish(1.0)
+
+def t_20():
+    # New user command whilst waiting for confirmation
+    upub.publish(1)
+    rospy.sleep(0.5)
+    cpub.publish(1)
+    upub.publish(0)
+    rospy.sleep(0.5)
+    gpub.publish(1.0)
+
+def t_21():
+    # Bad user command whilst waiting for confirmation
+    upub.publish(1)
+    rospy.sleep(0.5)
+    cpub.publish(1)
+    upub.publish(5)
+    rospy.sleep(0.5)
+    gpub.publish(1.0)
+
+def t_22():
+    # Invalid command on road
+    t_0()
+    rospy.sleep(1.0)
+    upub.publish(2)
 
 if len(sys.argv) < 2:
     print max(int(t[2:]) for t in globals() if t.startswith('t_'))

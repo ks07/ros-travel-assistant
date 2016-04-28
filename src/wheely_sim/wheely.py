@@ -200,7 +200,7 @@ class Crossing(smach.State):
                 client.cancel_goal()
                 self.service_preempt()
                 return 'preempted'
-            elif self.command != -1:
+            elif self.command != -1 and self.command < 2:
                 client.cancel_goal()
                 #userdata.cross_dest_out = self.command
                 client.wait_for_result(rospy.Duration.from_sec(10.0))
