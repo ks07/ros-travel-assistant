@@ -33,8 +33,8 @@ while [ $COUNTER -le $TESTCNT ]; do
 	(MONITORLOG=.monitor2_$COUNTER rosrun wheely_sim monitor2.py & echo $! >> /tmp/rospids) &
 	(MONITORLOG=.monitor3_$COUNTER rosrun wheely_sim monitor3.py & echo $! >> /tmp/rospids) &
 	(MONITORLOG=.monitor5_$COUNTER rosrun wheely_sim monitor5.py & echo $! >> /tmp/rospids) &
-	# Run the test drivers
-	(sleep 5 && rosrun wheely_sim manual_tests.py $COUNTER & echo $! >> /tmp/rospids)
+	# Run the test driver
+	(sleep 5 && rosrun wheely_sim cprg_tests.py & echo $! >> /tmp/rospids)
 
 	# Need to wait for the tests to be over, can (ab)use rostopic
 	rostopic echo -n 1 --filter='m.data ==127' /user_commands
