@@ -58,7 +58,7 @@ class Waiting(smach.State):
 
         if self.command == 127:
             # Quit command, to end a test gracefully.
-            return 'wait'
+            return 'shutdown'
         elif self.command >= 0:
             userdata.wait_dest_out = self.command
             self.command = -1
