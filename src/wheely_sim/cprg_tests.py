@@ -18,12 +18,23 @@ def set_constraints():
     stim_count = (3,30)
     global delay_constraint
     delay_constraint = (0.0,7.0)
-    global user_command
-    user_command = (0,2)
+    global user_invalid_prob
+    user_invalid_prob = 0.1
+    global user_inv_command
+    user_inv_command = 2
+    global user_good_command
+    user_good_command = (0,1)
     global crossing_signal
     crossing_signal = (0,1)
-    global gaze_sensor
-    gaze_sensor = (0.0,1.0)
+    global gaze_bad_prob
+    gaze_bad_prob = 0.2
+    global gaze_bad
+    gaze_bad = (0.0,0.79)
+    global gaze_good
+    gaze_good = (0.8,1.0)
+    # Sequence bias
+    global std_seq_bias
+    std_seq_bias = 0.4
 
 def delay():
     # Adds a random delay
@@ -34,7 +45,10 @@ def delay():
 def make_stimuli(type):
     # Uses constraints to pick params and send desired type of stimuli
     if type == 'u':
-        data = random.randint(*user_command)
+        if random.random() < user_invalid_prob:
+            data = user_inv_command
+        else:
+            data = random.randint(*user_good_command)
         print 'Driving u', data
         upub.publish(data)
     elif type == 'c':
@@ -42,7 +56,10 @@ def make_stimuli(type):
         print 'Driving c', data
         cpub.publish(data)
     elif type == 'g':
-        data = random.uniform(*gaze_sensor)
+        if random.random() < gaze_bad_prob:
+            data = random.uniform(*gaze_bad)
+        else:
+            data = random.uniform(*gaze_good)
         print 'Driving g', data
         gpub.publish(data)
 
@@ -50,8 +67,17 @@ def runtest():
     no_stimuli = random.randint(*stim_count)
     print 'Running CPRG test,', no_stimuli, 'stimuli'
     TYPES = ('u','c','g')
+    std_seq_pos = 3
     for i in range(no_stimuli):
-        type = random.choice(TYPES)
+        if std_seq_pos >= len(TYPES) and random.random() < std_seq_bias:
+            print 'StdSeq'
+            std_seq_pos = 0
+
+        if std_seq_pos < len(TYPES):
+            type = TYPES[std_seq_pos]
+            std_seq_pos += 1
+        else:
+            type = random.choice(TYPES)
         make_stimuli(type)
         delay()
 
