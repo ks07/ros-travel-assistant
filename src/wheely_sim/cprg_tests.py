@@ -1,0 +1,67 @@
+#!/usr/bin/env python
+
+# This script runs constrained pseudorandomly generated tests, to compare and contrast with BDI
+
+import sys
+import rospy
+import threading
+import random
+from std_msgs.msg import Int8, Float32
+
+upub = rospy.Publisher('user_commands', Int8, queue_size=1)
+cpub = rospy.Publisher('crossing_signals', Int8, queue_size=1)
+gpub = rospy.Publisher('gaze_sensor', Float32, queue_size=1)
+
+def set_constraints():
+    # Sets the constraints to use for generation
+    global stim_count
+    stim_count = (3,30)
+    global delay_constraint
+    delay_constraint = (0.0,7.0)
+    global user_command
+    user_command = (0,2)
+    global crossing_signal
+    crossing_signal = (0,1)
+    global gaze_sensor
+    gaze_sensor = (0.0,1.0)
+
+def delay():
+    # Adds a random delay
+    t = random.uniform(*delay_constraint)
+    print 'Sleep: ', t
+    rospy.sleep(t)
+
+def make_stimuli(type):
+    # Uses constraints to pick params and send desired type of stimuli
+    if type == 'u':
+        data = random.randint(*user_command)
+        print 'Driving u', data
+        upub.publish(data)
+    elif type == 'c':
+        data = random.randint(*crossing_signal)
+        print 'Driving c', data
+        cpub.publish(data)
+    elif type == 'g':
+        data = random.uniform(*gaze_sensor)
+        print 'Driving g', data
+        gpub.publish(data)
+
+def runtest():
+    no_stimuli = random.randint(*stim_count)
+    print 'Running CPRG test,', no_stimuli, 'stimuli'
+    TYPES = ('u','c','g')
+    for i in range(no_stimuli):
+        type = random.choice(TYPES)
+        make_stimuli(type)
+        delay()
+
+if __name__ == '__main__':
+    rospy.init_node('cprg_tests')
+    rospy.sleep(1)
+    set_constraints()
+    runtest()
+    rospy.sleep(8)
+    upub.publish(127) # Shutdown signal
+    rospy.sleep(0.5)
+    upub.publish(127) # Please
+    rospy.sleep(0.1)
