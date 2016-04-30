@@ -5,6 +5,7 @@ from contextlib import contextmanager
 
 import os
 import pickle
+import sys
 
 import smach
 
@@ -372,7 +373,27 @@ class StateMachine(smach.container.Container):
             # Step through state machine
             while container_outcome is None and self._is_running and not smach.is_shutdown():
                 # Update the state machine
-                container_outcome = self._update_once()
+                try:
+                    container_outcome = self._update_once()
+                except Exception as ex:
+                    # Save the coverage information
+                    if 'SSCOV_FILE' in os.environ:
+                        covbasename = os.environ['SSCOV_FILE']
+                    else:
+                        covbasename = '.scov'
+
+                    # Determine if suffixes are required
+                    if StateMachine.cov_instance_counter == 1:
+                        covsuffix = ''
+                    else:
+                        covsuffix = '_' + str(self.cov_id)
+
+                    with open(covbasename + covsuffix, 'w') as covfile:
+                        pickle.dump(self.cov_states, covfile)
+
+                    with open('.ERRORS_' + covbasename + covsuffix, 'w') as ef:
+                        ef.write(str(ex))
+                    raise
 
             # Copy output keys
             self._copy_output_keys(self.userdata, parent_ud)
