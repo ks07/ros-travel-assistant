@@ -94,6 +94,7 @@ gaze_sensor         = [0.7,1.0]
 		value = (double)uniform(0, 4000);
 		break;
 	    case "user_commands":
+		//value = 1.0d;
 		value = (double)uniform(0, 2);
 		break;
 	    case "crossing_signals":
